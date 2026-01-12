@@ -29,6 +29,17 @@ function StatusPage() {
     };
   }, []);
 
+  // 화면이 포커스를 받을 때 데이터 갱신 (다른 탭에서 주문한 경우 대비)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadOrders();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   const loadOrders = () => {
     const allOrders = getOrders();
     setOrders(allOrders);
@@ -39,7 +50,21 @@ function StatusPage() {
     // 팀별로 주문 그룹화
     const teamMap = new Map();
 
+    if (!Array.isArray(allOrders) || allOrders.length === 0) {
+      setTeamOrders([]);
+      setStats({
+        totalQuantity: 0,
+        teamCount: 0,
+        totalAmount: 0
+      });
+      return;
+    }
+
     allOrders.forEach(order => {
+      if (!order || !order.teamName || !order.menus || !Array.isArray(order.menus)) {
+        return; // 잘못된 데이터는 건너뛰기
+      }
+      
       const teamName = order.teamName;
       
       if (!teamMap.has(teamName)) {
@@ -51,29 +76,39 @@ function StatusPage() {
 
       // 각 메뉴 항목을 옵션별로 그룹화
       order.menus.forEach(menuItem => {
+        if (!menuItem || !menuItem.menu || !menuItem.menu.name) {
+          return; // 잘못된 메뉴 항목은 건너뛰기
+        }
+        
         const optionsKey = [
-          menuItem.options.temperature,
-          menuItem.options.size,
-          menuItem.options.shot,
-          menuItem.options.extra
+          menuItem.options?.temperature,
+          menuItem.options?.size,
+          menuItem.options?.shot,
+          menuItem.options?.extra
         ].filter(Boolean).join(', ');
 
+        const normalizedOptionsKey = optionsKey || '기본 옵션';
+        
         const existingItem = teamMap.get(teamName).items.find(
-          item => item.menuName === menuItem.menu.name && item.options === optionsKey
+          item => item.menuName === menuItem.menu.name && item.options === normalizedOptionsKey
         );
 
+        const quantity = menuItem.quantity || 1;
+        const totalPrice = menuItem.totalPrice || (menuItem.unitPrice || 0) * quantity;
+        const unitPrice = menuItem.unitPrice || 0;
+        
         if (existingItem) {
           // 동일한 메뉴와 옵션이 있으면 수량과 금액 합산
-          existingItem.quantity += menuItem.quantity;
-          existingItem.amount += menuItem.totalPrice;
+          existingItem.quantity += quantity;
+          existingItem.amount += totalPrice;
         } else {
           // 새로운 항목 추가
           teamMap.get(teamName).items.push({
             menuName: menuItem.menu.name,
-            options: optionsKey || '기본',
-            quantity: menuItem.quantity,
-            unitPrice: menuItem.unitPrice,
-            amount: menuItem.totalPrice
+            options: normalizedOptionsKey,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            amount: totalPrice
           });
         }
       });
@@ -119,9 +154,9 @@ function StatusPage() {
             </div>
           ) : (
             <div className="team-cards">
-              {teamOrders.map((team, index) => (
+              {teamOrders.map((team) => (
                 <TeamOrderCard
-                  key={index}
+                  key={team.teamName}
                   teamName={team.teamName}
                   orderItems={team.items}
                   totalQuantity={team.totalQuantity}

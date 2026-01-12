@@ -74,7 +74,7 @@ function OrderSidebar({
             ) : (
               <div className="menu-list">
                 {selectedMenus.map((item, index) => (
-                  <div key={index} className="menu-item">
+                  <div key={`${item.menu.id}-${index}-${JSON.stringify(item.options)}`} className="menu-item">
                     <div className="menu-item-info">
                       <div className="menu-item-name">{item.menu.name}</div>
                       <div className="menu-item-options">
@@ -83,7 +83,7 @@ function OrderSidebar({
                           item.options.size,
                           item.options.shot,
                           item.options.extra
-                        ].filter(Boolean).join(', ')}
+                        ].filter(Boolean).join(', ') || '기본 옵션'}
                       </div>
                       <div className="menu-item-price">
                         {item.totalPrice.toLocaleString()}원

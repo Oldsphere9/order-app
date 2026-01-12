@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './OptionModal.css';
 
 function OptionModal({ menu, isOpen, onClose, onConfirm }) {
@@ -8,6 +8,18 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
     shot: '기본',
     extra: ''
   });
+
+  // 메뉴가 변경될 때 옵션 초기화
+  useEffect(() => {
+    if (menu) {
+      setOptions({
+        temperature: 'HOT',
+        size: 'Regular',
+        shot: '기본',
+        extra: ''
+      });
+    }
+  }, [menu]);
 
   if (!isOpen) return null;
 

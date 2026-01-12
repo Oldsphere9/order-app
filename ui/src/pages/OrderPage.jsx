@@ -44,8 +44,21 @@ function OrderPage() {
   const totalPrice = selectedMenus.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const handleSubmit = () => {
-    if (!selectedTeam || !name || !employeeId || selectedMenus.length === 0) {
-      alert('모든 필수 항목을 입력해주세요.');
+    // 입력 검증
+    if (!selectedTeam) {
+      alert('팀을 선택해주세요.');
+      return;
+    }
+    if (!name || name.trim() === '') {
+      alert('이름을 입력해주세요.');
+      return;
+    }
+    if (!employeeId || employeeId.trim() === '') {
+      alert('사원번호를 입력해주세요.');
+      return;
+    }
+    if (selectedMenus.length === 0) {
+      alert('메뉴를 선택해주세요.');
       return;
     }
 
@@ -59,18 +72,22 @@ function OrderPage() {
       totalPrice
     };
 
-    saveOrder(orderData);
-    
-    // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
-    window.dispatchEvent(new Event('orderUpdated'));
-    
-    alert('주문이 완료되었습니다!');
-    
-    // 주문 후 초기화
-    setSelectedMenus([]);
-    setSelectedTeam('');
-    setName('');
-    setEmployeeId('');
+    try {
+      saveOrder(orderData);
+      
+      // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
+      window.dispatchEvent(new Event('orderUpdated'));
+      
+      alert('주문이 완료되었습니다!');
+      
+      // 주문 후 초기화
+      setSelectedMenus([]);
+      setSelectedTeam('');
+      setName('');
+      setEmployeeId('');
+    } catch (error) {
+      alert(error.message || '주문 저장에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   return (
