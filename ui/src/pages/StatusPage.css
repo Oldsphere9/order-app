@@ -1,0 +1,41 @@
+.status-page {
+  min-height: calc(100vh - 80px);
+  background-color: #f5f5f5;
+  padding: 2rem;
+}
+
+.status-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.team-orders-section {
+  margin-top: 2rem;
+}
+
+.empty-state {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 3rem;
+  text-align: center;
+  color: #999;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.team-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Header from './components/Header'
 import OrderPage from './pages/OrderPage'
+import StatusPage from './pages/StatusPage'
 import './App.css'
 
 function App() {
@@ -10,11 +11,7 @@ function App() {
     <div className="App">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       {activeTab === 'order' && <OrderPage />}
-      {activeTab === 'status' && (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h2>주문 현황 화면은 준비 중입니다.</h2>
-        </div>
-      )}
+      {activeTab === 'status' && <StatusPage />}
     </div>
   )
 }

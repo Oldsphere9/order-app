@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import MenuSelection from '../components/MenuSelection';
 import OrderSidebar from '../components/OrderSidebar';
 import OptionModal from '../components/OptionModal';
+import { saveOrder } from '../utils/orderStorage';
+import { teams } from '../data/menuData';
 import './OrderPage.css';
 
 function OrderPage() {
@@ -47,16 +49,21 @@ function OrderPage() {
       return;
     }
 
+    const team = teams.find(t => t.id.toString() === selectedTeam);
     const orderData = {
       teamId: selectedTeam,
-      teamName: selectedTeam,
+      teamName: team ? team.name : selectedTeam,
       name,
       employeeId,
       menus: selectedMenus,
       totalPrice
     };
 
-    console.log('주문 데이터:', orderData);
+    saveOrder(orderData);
+    
+    // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
+    window.dispatchEvent(new Event('orderUpdated'));
+    
     alert('주문이 완료되었습니다!');
     
     // 주문 후 초기화

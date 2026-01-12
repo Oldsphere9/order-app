@@ -1,0 +1,86 @@
+.team-order-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.team-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.team-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.team-icon {
+  font-size: 1.5rem;
+}
+
+.team-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.team-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.team-summary {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.team-amount {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.order-table-container {
+  overflow-x: auto;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-table thead {
+  background-color: #f5f5f5;
+}
+
+.order-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.order-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #666;
+}
+
+.order-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+.order-table tbody tr:last-child td {
+  border-bottom: none;
+}
