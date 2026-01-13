@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import './OptionModal.css';
 
 function OptionModal({ menu, isOpen, onClose, onConfirm }) {
+  // 메뉴 이름에 '아이스', '스무디', '설향', '스파클링'이 포함되어 있는지 확인
+  const isIceMenu = menu && menu.name && menu.name.includes('아이스');
+  const isSmoothieMenu = menu && menu.name && menu.name.includes('스무디');
+  const isSeolhyangMenu = menu && menu.name && menu.name.includes('설향');
+  const isSparklingMenu = menu && menu.name && menu.name.includes('스파클링');
+  const shouldHideTemperature = isIceMenu || isSmoothieMenu || isSeolhyangMenu || isSparklingMenu;
+  
   const [options, setOptions] = useState({
     temperature: 'HOT',
     size: 'Regular',
@@ -13,22 +20,23 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
   useEffect(() => {
     if (menu) {
       setOptions({
-        temperature: 'HOT',
+        temperature: shouldHideTemperature ? 'ICE' : 'HOT', // 아이스/스무디 메뉴는 ICE로 고정
         size: 'Regular',
         shot: '기본',
         extra: ''
       });
     }
-  }, [menu]);
+  }, [menu, shouldHideTemperature]);
 
   if (!isOpen) return null;
 
   const calculatePrice = () => {
-    let price = menu.basePrice;
+    let price = menu.base_price || menu.basePrice || 0;
     
     // 사이즈에 따른 가격 조정
-    if (options.size === 'Grande') price += 500;
-    else if (options.size === 'Venti') price += 1000;
+    if (options.size === 'Small') price -= 500;
+    else if (options.size === 'Large') price += 500;
+    // Regular는 기본 가격 유지
     
     // 샷 추가에 따른 가격 조정
     if (options.shot === '+1샷') price += 500;
@@ -61,27 +69,36 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
         </div>
         
         <div className="modal-body">
-          <div className="option-group">
-            <label>온도</label>
-            <div className="option-buttons">
-              <button
-                className={`option-btn ${options.temperature === 'HOT' ? 'active' : ''}`}
-                onClick={() => setOptions({...options, temperature: 'HOT'})}
-              >
-                HOT
-              </button>
-              <button
-                className={`option-btn ${options.temperature === 'ICE' ? 'active' : ''}`}
-                onClick={() => setOptions({...options, temperature: 'ICE'})}
-              >
-                ICE
-              </button>
+          {/* 아이스, 스무디, 설향, 스파클링 메뉴가 아닌 경우에만 온도 옵션 표시 */}
+          {!shouldHideTemperature && (
+            <div className="option-group">
+              <label>온도</label>
+              <div className="option-buttons">
+                <button
+                  className={`option-btn ${options.temperature === 'HOT' ? 'active' : ''}`}
+                  onClick={() => setOptions({...options, temperature: 'HOT'})}
+                >
+                  HOT
+                </button>
+                <button
+                  className={`option-btn ${options.temperature === 'ICE' ? 'active' : ''}`}
+                  onClick={() => setOptions({...options, temperature: 'ICE'})}
+                >
+                  ICE
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="option-group">
             <label>사이즈</label>
             <div className="option-buttons">
+              <button
+                className={`option-btn ${options.size === 'Small' ? 'active' : ''}`}
+                onClick={() => setOptions({...options, size: 'Small'})}
+              >
+                Small (-500원)
+              </button>
               <button
                 className={`option-btn ${options.size === 'Regular' ? 'active' : ''}`}
                 onClick={() => setOptions({...options, size: 'Regular'})}
@@ -89,16 +106,10 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
                 Regular
               </button>
               <button
-                className={`option-btn ${options.size === 'Grande' ? 'active' : ''}`}
-                onClick={() => setOptions({...options, size: 'Grande'})}
+                className={`option-btn ${options.size === 'Large' ? 'active' : ''}`}
+                onClick={() => setOptions({...options, size: 'Large'})}
               >
-                Grande (+500원)
-              </button>
-              <button
-                className={`option-btn ${options.size === 'Venti' ? 'active' : ''}`}
-                onClick={() => setOptions({...options, size: 'Venti'})}
-              >
-                Venti (+1,000원)
+                Large (+500원)
               </button>
             </div>
           </div>

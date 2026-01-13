@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Header from './components/Header'
 import OrderPage from './pages/OrderPage'
 import StatusPage from './pages/StatusPage'
+import MenuManagementPage from './pages/MenuManagementPage'
 import './App.css'
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       {activeTab === 'order' && <OrderPage />}
       {activeTab === 'status' && <StatusPage />}
+      {activeTab === 'management' && <MenuManagementPage />}
     </div>
   )
 }

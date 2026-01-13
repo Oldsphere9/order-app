@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import MenuSelection from '../components/MenuSelection';
 import OrderSidebar from '../components/OrderSidebar';
 import OptionModal from '../components/OptionModal';
-import { saveOrder } from '../utils/orderStorage';
+import { orderAPI } from '../utils/api';
 import { teams } from '../data/menuData';
 import './OrderPage.css';
 
@@ -43,7 +43,7 @@ function OrderPage() {
 
   const totalPrice = selectedMenus.reduce((sum, item) => sum + item.totalPrice, 0);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // 입력 검증
     if (!selectedTeam) {
       alert('팀을 선택해주세요.');
@@ -63,30 +63,40 @@ function OrderPage() {
     }
 
     const team = teams.find(t => t.id.toString() === selectedTeam);
+    const teamName = team ? team.name : selectedTeam;
+
+    // API 형식에 맞게 데이터 변환
     const orderData = {
-      teamId: selectedTeam,
-      teamName: team ? team.name : selectedTeam,
-      name,
-      employeeId,
-      menus: selectedMenus,
-      totalPrice
+      team: teamName,
+      name: name.trim(),
+      employee_id: employeeId.trim(),
+      menus: selectedMenus.map(item => ({
+        menu_id: item.menu.id,
+        quantity: item.quantity,
+        options: item.options
+      }))
     };
 
     try {
-      saveOrder(orderData);
+      const response = await orderAPI.createOrder(orderData);
       
-      // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
-      window.dispatchEvent(new Event('orderUpdated'));
-      
-      alert('주문이 완료되었습니다!');
-      
-      // 주문 후 초기화
-      setSelectedMenus([]);
-      setSelectedTeam('');
-      setName('');
-      setEmployeeId('');
+      if (response.success) {
+        // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
+        window.dispatchEvent(new Event('orderUpdated'));
+        
+        alert('주문이 완료되었습니다!');
+        
+        // 주문 후 초기화
+        setSelectedMenus([]);
+        setSelectedTeam('');
+        setName('');
+        setEmployeeId('');
+      } else {
+        alert(response.error || '주문 저장에 실패했습니다.');
+      }
     } catch (error) {
-      alert(error.message || '주문 저장에 실패했습니다. 다시 시도해주세요.');
+      const errorMessage = error.response?.data?.error || error.message || '주문 저장에 실패했습니다. 다시 시도해주세요.';
+      alert(errorMessage);
     }
   };
 

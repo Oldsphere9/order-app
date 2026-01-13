@@ -21,7 +21,18 @@
 - 프런트엔드와 백엔드를 따로 개발
 - 기본적인 웹 기술만 사용
 - 소속 조직명, 사번, 이름으로 회원가입 기능은 있으나 결제 기능은 제외
-- 메뉴는 커피빈 공식 홈페이지(https://www.coffeebeankorea.com/menu/list.asp?category=13) 참조하여 생성
+- 메뉴는 다음의 커피빈 공식 홈페이지를 크롤링 하여 리스트를 생성
+  * https://www.coffeebeankorea.com/menu/list.asp?category=32
+  * https://www.coffeebeankorea.com/menu/list.asp?category=13
+  * https://www.coffeebeankorea.com/menu/list.asp?category=14
+  * https://www.coffeebeankorea.com/menu/list.asp?category=18
+  * https://www.coffeebeankorea.com/menu/list.asp?category=17
+  * https://www.coffeebeankorea.com/menu/list.asp?category=12
+  * https://www.coffeebeankorea.com/menu/list.asp?category=11
+  * https://www.coffeebeankorea.com/menu/list.asp?category=26
+  * https://www.coffeebeankorea.com/menu/list.asp?category=6
+  * https://www.coffeebeankorea.com/menu/list.asp?category=4
+
 
 ## 4. 주문하기 화면 상세 요구사항
 

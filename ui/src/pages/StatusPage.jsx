@@ -1,38 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { getOrders } from '../utils/orderStorage';
+import { orderAPI } from '../utils/api';
 import StatsCards from '../components/StatsCards';
 import TeamOrderCard from '../components/TeamOrderCard';
 import './StatusPage.css';
 
 function StatusPage() {
-  const [orders, setOrders] = useState([]);
   const [teamOrders, setTeamOrders] = useState([]);
   const [stats, setStats] = useState({
     totalQuantity: 0,
     teamCount: 0,
     totalAmount: 0
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadOrders();
-    // 주문 데이터 변경 감지를 위한 이벤트 리스너
-    const handleStorageChange = () => {
-      loadOrders();
-    };
-    window.addEventListener('storage', handleStorageChange);
+    loadData();
     // 주문 페이지에서 주문이 완료되면 상태 업데이트를 위한 커스텀 이벤트
-    window.addEventListener('orderUpdated', handleStorageChange);
+    const handleOrderUpdated = () => {
+      loadData();
+    };
+    window.addEventListener('orderUpdated', handleOrderUpdated);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('orderUpdated', handleStorageChange);
+      window.removeEventListener('orderUpdated', handleOrderUpdated);
     };
   }, []);
 
-  // 화면이 포커스를 받을 때 데이터 갱신 (다른 탭에서 주문한 경우 대비)
+  // 화면이 포커스를 받을 때 데이터 갱신
   useEffect(() => {
     const handleFocus = () => {
-      loadOrders();
+      loadData();
     };
     window.addEventListener('focus', handleFocus);
     return () => {
@@ -40,32 +38,45 @@ function StatusPage() {
     };
   }, []);
 
-  const loadOrders = () => {
-    const allOrders = getOrders();
-    setOrders(allOrders);
-    processOrders(allOrders);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 주문 목록과 통계를 동시에 조회
+      const [ordersData, statsData] = await Promise.all([
+        orderAPI.getOrders(),
+        orderAPI.getOrderStats()
+      ]);
+      
+      // 통계 설정
+      setStats({
+        totalQuantity: statsData.total_quantity || 0,
+        teamCount: statsData.team_count || 0,
+        totalAmount: statsData.total_amount || 0
+      });
+      
+      // 주문 데이터 처리 (팀별로 그룹화 및 동일 옵션 메뉴별 집계)
+      processOrders(ordersData);
+    } catch (err) {
+      console.error('데이터 로딩 실패:', err);
+      setError('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const processOrders = (allOrders) => {
-    // 팀별로 주문 그룹화
-    const teamMap = new Map();
-
-    if (!Array.isArray(allOrders) || allOrders.length === 0) {
+  const processOrders = (ordersData) => {
+    if (!Array.isArray(ordersData) || ordersData.length === 0) {
       setTeamOrders([]);
-      setStats({
-        totalQuantity: 0,
-        teamCount: 0,
-        totalAmount: 0
-      });
       return;
     }
 
-    allOrders.forEach(order => {
-      if (!order || !order.teamName || !order.menus || !Array.isArray(order.menus)) {
-        return; // 잘못된 데이터는 건너뛰기
-      }
-      
-      const teamName = order.teamName;
+    // 팀별로 주문 그룹화 및 동일 옵션 메뉴별 집계
+    const teamMap = new Map();
+
+    ordersData.forEach(orderGroup => {
+      const teamName = orderGroup.member.team;
       
       if (!teamMap.has(teamName)) {
         teamMap.set(teamName, {
@@ -74,41 +85,33 @@ function StatusPage() {
         });
       }
 
-      // 각 메뉴 항목을 옵션별로 그룹화
-      order.menus.forEach(menuItem => {
-        if (!menuItem || !menuItem.menu || !menuItem.menu.name) {
-          return; // 잘못된 메뉴 항목은 건너뛰기
-        }
-        
+      // 각 주문 항목을 옵션별로 그룹화
+      orderGroup.orders.forEach(order => {
         const optionsKey = [
-          menuItem.options?.temperature,
-          menuItem.options?.size,
-          menuItem.options?.shot,
-          menuItem.options?.extra
+          order.options?.temperature,
+          order.options?.size,
+          order.options?.shot,
+          order.options?.extra
         ].filter(Boolean).join(', ');
 
         const normalizedOptionsKey = optionsKey || '기본 옵션';
         
         const existingItem = teamMap.get(teamName).items.find(
-          item => item.menuName === menuItem.menu.name && item.options === normalizedOptionsKey
+          item => item.menuName === order.menu.name && item.options === normalizedOptionsKey
         );
 
-        const quantity = menuItem.quantity || 1;
-        const totalPrice = menuItem.totalPrice || (menuItem.unitPrice || 0) * quantity;
-        const unitPrice = menuItem.unitPrice || 0;
-        
         if (existingItem) {
           // 동일한 메뉴와 옵션이 있으면 수량과 금액 합산
-          existingItem.quantity += quantity;
-          existingItem.amount += totalPrice;
+          existingItem.quantity += order.quantity;
+          existingItem.amount += order.total_price;
         } else {
           // 새로운 항목 추가
           teamMap.get(teamName).items.push({
-            menuName: menuItem.menu.name,
+            menuName: order.menu.name,
             options: normalizedOptionsKey,
-            quantity: quantity,
-            unitPrice: unitPrice,
-            amount: totalPrice
+            quantity: order.quantity,
+            unitPrice: order.unit_price,
+            amount: order.total_price
           });
         }
       });
@@ -123,17 +126,6 @@ function StatusPage() {
     }));
 
     setTeamOrders(teamOrdersArray);
-
-    // 통계 계산
-    const totalQuantity = teamOrdersArray.reduce((sum, team) => sum + team.totalQuantity, 0);
-    const teamCount = teamOrdersArray.length;
-    const totalAmount = teamOrdersArray.reduce((sum, team) => sum + team.totalAmount, 0);
-
-    setStats({
-      totalQuantity,
-      teamCount,
-      totalAmount
-    });
   };
 
   return (
@@ -148,7 +140,15 @@ function StatusPage() {
         <div className="team-orders-section">
           <h2 className="section-title">팀별 주문 현황</h2>
           
-          {teamOrders.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">
+              <p>데이터를 불러오는 중...</p>
+            </div>
+          ) : error ? (
+            <div className="empty-state">
+              <p style={{ color: '#d32f2f' }}>{error}</p>
+            </div>
+          ) : teamOrders.length === 0 ? (
             <div className="empty-state">
               <p>주문 내역이 없습니다.</p>
             </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { teams } from '../data/menuData';
 import './OrderSidebar.css';
 
@@ -17,6 +17,13 @@ function OrderSidebar({
 }) {
   const isFormValid = selectedTeam && name && employeeId && selectedMenus.length > 0;
 
+  // 팀 목록을 한글 순서로 정렬
+  const sortedTeams = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      return a.name.localeCompare(b.name, 'ko');
+    });
+  }, []);
+
   return (
     <div className="order-sidebar">
       <div className="sidebar-header">
@@ -34,7 +41,7 @@ function OrderSidebar({
             onChange={(e) => onTeamChange(e.target.value)}
           >
             <option value="">팀을 선택하세요</option>
-            {teams.map(team => (
+            {sortedTeams.map(team => (
               <option key={team.id} value={team.id}>
                 {team.name}
               </option>
@@ -79,7 +86,10 @@ function OrderSidebar({
                       <div className="menu-item-name">{item.menu.name}</div>
                       <div className="menu-item-options">
                         {[
-                          item.options.temperature,
+                          // 아이스, 스무디, 설향, 스파클링 메뉴가 아닌 경우에만 temperature 표시
+                          item.menu.name && (item.menu.name.includes('아이스') || item.menu.name.includes('스무디') || item.menu.name.includes('설향') || item.menu.name.includes('스파클링')) 
+                            ? null 
+                            : item.options.temperature,
                           item.options.size,
                           item.options.shot,
                           item.options.extra

@@ -12,7 +12,10 @@ const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'coffee_order_db',
-  user: process.env.DB_USER || process.env.USER || 'postgres',
+  // DB_USER가 설정되지 않았거나 'postgres'인 경우 현재 시스템 사용자 사용
+  user: (process.env.DB_USER && process.env.DB_USER !== 'postgres') 
+    ? process.env.DB_USER 
+    : (process.env.USER || 'postgres'),
   password: process.env.DB_PASSWORD || '',
   max: 20, // 최대 연결 수
   idleTimeoutMillis: 30000,

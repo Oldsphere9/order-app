@@ -22,6 +22,12 @@ function Header({ activeTab, onTabChange }) {
           >
             주문 현황
           </button>
+          <button
+            className={`nav-tab ${activeTab === 'management' ? 'active' : ''}`}
+            onClick={() => onTabChange('management')}
+          >
+            메뉴 관리
+          </button>
         </nav>
       </div>
     </header>
