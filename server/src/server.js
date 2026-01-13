@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import menuRoutes from './routes/menuRoutes.js';
 import optionRoutes from './routes/optionRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import memberRoutes from './routes/memberRoutes.js';
 
 // 환경 변수 로드 (.env 파일)
 dotenv.config({ path: '.env' });
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/menus', menuRoutes);
 app.use('/api/options', optionRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/members', memberRoutes);
 
 // 기본 라우트
 app.get('/', (req, res) => {
@@ -32,7 +34,8 @@ app.get('/', (req, res) => {
     endpoints: {
       menus: '/api/menus',
       options: '/api/options',
-      orders: '/api/orders'
+      orders: '/api/orders',
+      members: '/api/members'
     }
   });
 });

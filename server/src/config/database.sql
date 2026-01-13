@@ -46,6 +46,18 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- MemberMenuPreferences 테이블 생성
+CREATE TABLE IF NOT EXISTS member_menu_preferences (
+    id SERIAL PRIMARY KEY,
+    member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
+    order_count INTEGER NOT NULL DEFAULT 0 CHECK (order_count >= 0),
+    last_ordered_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(member_id, menu_id)
+);
+
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_menus_category ON menus(category);
 CREATE INDEX IF NOT EXISTS idx_menus_sale_status ON menus(sale_status);
@@ -55,6 +67,9 @@ CREATE INDEX IF NOT EXISTS idx_members_employee_id ON members(employee_id);
 CREATE INDEX IF NOT EXISTS idx_orders_member_id ON orders(member_id);
 CREATE INDEX IF NOT EXISTS idx_orders_menu_id ON orders(menu_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_member_id ON member_menu_preferences(member_id);
+CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_menu_id ON member_menu_preferences(menu_id);
+CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_order_count ON member_menu_preferences(order_count DESC);
 
 -- updated_at 자동 업데이트를 위한 트리거 함수
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -76,4 +91,7 @@ CREATE TRIGGER update_members_updated_at BEFORE UPDATE ON members
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_member_menu_preferences_updated_at BEFORE UPDATE ON member_menu_preferences
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

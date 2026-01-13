@@ -3,6 +3,7 @@ import * as memberModel from '../models/memberModel.js';
 import * as orderModel from '../models/orderModel.js';
 import * as menuModel from '../models/menuModel.js';
 import * as optionModel from '../models/optionModel.js';
+import * as memberMenuPreferenceModel from '../models/memberMenuPreferenceModel.js';
 
 // 옵션 가격 계산
 const calculateOptionPrice = async (menuId, options) => {
@@ -86,7 +87,7 @@ export const createOrder = async (req, res, next) => {
     // Members 테이블에 저장/업데이트
     const member = await memberModel.findOrCreateMember({ team, name, employee_id });
     
-    // Orders 테이블에 저장
+    // Orders 테이블에 저장 및 선호도 업데이트
     const orderIds = [];
     for (const menuItem of menus) {
       const unitPrice = await calculateOptionPrice(menuItem.menu_id, menuItem.options);
@@ -100,10 +101,23 @@ export const createOrder = async (req, res, next) => {
           options: menuItem.options,
           unit_price: unitPrice,
           total_price: totalPrice
-        }
+        },
+        client
       );
       
       orderIds.push(order.id);
+      
+      // 현재 시간 기준으로 요일과 시간대 계산 (한국 시간대)
+      const now = new Date();
+      const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const dayOfWeek = koreaTime.getDay(); // 0(일요일) ~ 6(토요일)
+      const hour = koreaTime.getHours();
+      const timeSlot = memberMenuPreferenceModel.getTimeSlot(hour);
+      
+      // 선호도 업데이트 (주문 횟수만큼 반복)
+      for (let i = 0; i < menuItem.quantity; i++) {
+        await memberMenuPreferenceModel.upsertPreference(member.id, menuItem.menu_id, dayOfWeek, timeSlot, client);
+      }
     }
     
     await client.query('COMMIT');
@@ -181,6 +195,110 @@ export const getOrderStats = async (req, res, next) => {
       total_amount: parseInt(stats.total_amount) || 0
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteOrder = async (req, res, next) => {
+  let client;
+  
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    const { id } = req.params;
+    
+    // 주문 존재 여부 확인
+    const orderCheck = await client.query(
+      'SELECT id, member_id FROM orders WHERE id = $1',
+      [id]
+    );
+    
+    if (orderCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({
+        success: false,
+        error: '주문을 찾을 수 없습니다.',
+        code: 'ORDER_NOT_FOUND'
+      });
+    }
+    
+    // 주문 삭제
+    await client.query('DELETE FROM orders WHERE id = $1', [id]);
+    
+    // 해당 멤버의 다른 주문이 있는지 확인
+    const remainingOrders = await client.query(
+      'SELECT COUNT(*) as count FROM orders WHERE member_id = $1',
+      [orderCheck.rows[0].member_id]
+    );
+    
+    // 다른 주문이 없으면 멤버도 삭제
+    if (parseInt(remainingOrders.rows[0].count) === 0) {
+      await client.query('DELETE FROM members WHERE id = $1', [orderCheck.rows[0].member_id]);
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: '주문이 삭제되었습니다.'
+    });
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+    next(error);
+  }
+};
+
+export const deleteMemberOrders = async (req, res, next) => {
+  let client;
+  
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    const { member_id } = req.params;
+    
+    // 멤버 존재 여부 확인
+    const memberCheck = await client.query(
+      'SELECT id FROM members WHERE id = $1',
+      [member_id]
+    );
+    
+    if (memberCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({
+        success: false,
+        error: '주문 인원을 찾을 수 없습니다.',
+        code: 'MEMBER_NOT_FOUND'
+      });
+    }
+    
+    // 해당 멤버의 모든 주문 삭제
+    const deleteResult = await client.query(
+      'DELETE FROM orders WHERE member_id = $1 RETURNING id',
+      [member_id]
+    );
+    
+    // 멤버도 삭제
+    await client.query('DELETE FROM members WHERE id = $1', [member_id]);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: '주문 인원의 모든 주문이 삭제되었습니다.',
+      deleted_orders_count: deleteResult.rows.length
+    });
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+      client.release();
+    }
     next(error);
   }
 };

@@ -1,10 +1,10 @@
 import pool from '../config/database.js';
 
 // 주문 생성
-export const createOrder = async (memberId, menuId, orderData) => {
+export const createOrder = async (memberId, menuId, orderData, client = pool) => {
   const { quantity, options, unit_price, total_price } = orderData;
   
-  const result = await pool.query(
+  const result = await client.query(
     'INSERT INTO orders (member_id, menu_id, quantity, options, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
     [memberId, menuId, quantity, JSON.stringify(options), unit_price, total_price]
   );

@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { orderAPI } from '../utils/api';
 import StatsCards from '../components/StatsCards';
 import TeamOrderCard from '../components/TeamOrderCard';
+import MemberOrderCard from '../components/MemberOrderCard';
+import { formatOptions } from '../utils/optionUtils';
+import { showToast } from '../utils/toast';
 import './StatusPage.css';
 
 function StatusPage() {
   const [teamOrders, setTeamOrders] = useState([]);
+  const [memberOrders, setMemberOrders] = useState([]);
   const [stats, setStats] = useState({
     totalQuantity: 0,
     teamCount: 0,
@@ -13,6 +17,7 @@ function StatusPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('team'); // 'team' or 'member'
 
   useEffect(() => {
     loadData();
@@ -58,6 +63,9 @@ function StatusPage() {
       
       // 주문 데이터 처리 (팀별로 그룹화 및 동일 옵션 메뉴별 집계)
       processOrders(ordersData);
+      
+      // 주문 인원별 데이터 처리
+      processMemberOrders(ordersData);
     } catch (err) {
       console.error('데이터 로딩 실패:', err);
       setError('데이터를 불러오는데 실패했습니다.');
@@ -87,14 +95,9 @@ function StatusPage() {
 
       // 각 주문 항목을 옵션별로 그룹화
       orderGroup.orders.forEach(order => {
-        const optionsKey = [
-          order.options?.temperature,
-          order.options?.size,
-          order.options?.shot,
-          order.options?.extra
-        ].filter(Boolean).join(', ');
-
-        const normalizedOptionsKey = optionsKey || '기본 옵션';
+        if (!order || !order.menu) return;
+        
+        const normalizedOptionsKey = formatOptions(order.options, order.menu);
         
         const existingItem = teamMap.get(teamName).items.find(
           item => item.menuName === order.menu.name && item.options === normalizedOptionsKey
@@ -125,7 +128,47 @@ function StatusPage() {
       totalAmount: team.items.reduce((sum, item) => sum + item.amount, 0)
     }));
 
+    // 팀 이름을 한글 순서로 정렬
+    teamOrdersArray.sort((a, b) => {
+      return a.teamName.localeCompare(b.teamName, 'ko');
+    });
+
     setTeamOrders(teamOrdersArray);
+  };
+
+  const processMemberOrders = (ordersData) => {
+    if (!Array.isArray(ordersData) || ordersData.length === 0) {
+      setMemberOrders([]);
+      return;
+    }
+
+    // 주문 인원별로 그룹화
+    const memberOrdersArray = ordersData.map(orderGroup => ({
+      member: orderGroup.member,
+      orders: orderGroup.orders
+    }));
+
+    // 주문 인원 이름을 한글 순서로 정렬
+    memberOrdersArray.sort((a, b) => {
+      return a.member.name.localeCompare(b.member.name, 'ko');
+    });
+
+    setMemberOrders(memberOrdersArray);
+  };
+
+  const handleDeleteMemberOrders = async (memberId) => {
+    if (!memberId) return;
+    
+    try {
+      await orderAPI.deleteMemberOrders(memberId);
+      showToast('주문이 취소되었습니다.', 'success');
+      // 데이터 새로고침
+      loadData();
+    } catch (error) {
+      console.error('주문 삭제 실패:', error);
+      const errorMessage = error.response?.data?.error || error.message || '주문 취소에 실패했습니다.';
+      showToast(errorMessage, 'error');
+    }
   };
 
   return (
@@ -137,9 +180,22 @@ function StatusPage() {
           totalAmount={stats.totalAmount}
         />
 
-        <div className="team-orders-section">
-          <h2 className="section-title">팀별 주문 현황</h2>
-          
+        <div className="orders-section">
+          <div className="section-tabs">
+            <button
+              className={`section-tab ${activeTab === 'team' ? 'active' : ''}`}
+              onClick={() => setActiveTab('team')}
+            >
+              팀별 주문 현황
+            </button>
+            <button
+              className={`section-tab ${activeTab === 'member' ? 'active' : ''}`}
+              onClick={() => setActiveTab('member')}
+            >
+              인원별 주문 현황
+            </button>
+          </div>
+
           {loading ? (
             <div className="empty-state">
               <p>데이터를 불러오는 중...</p>
@@ -148,22 +204,41 @@ function StatusPage() {
             <div className="empty-state">
               <p style={{ color: '#d32f2f' }}>{error}</p>
             </div>
-          ) : teamOrders.length === 0 ? (
-            <div className="empty-state">
-              <p>주문 내역이 없습니다.</p>
-            </div>
+          ) : activeTab === 'team' ? (
+            teamOrders.length === 0 ? (
+              <div className="empty-state">
+                <p>주문 내역이 없습니다.</p>
+              </div>
+            ) : (
+              <div className="team-cards">
+                {teamOrders.map((team) => (
+                  <TeamOrderCard
+                    key={team.teamName}
+                    teamName={team.teamName}
+                    orderItems={team.items}
+                    totalQuantity={team.totalQuantity}
+                    totalAmount={team.totalAmount}
+                  />
+                ))}
+              </div>
+            )
           ) : (
-            <div className="team-cards">
-              {teamOrders.map((team) => (
-                <TeamOrderCard
-                  key={team.teamName}
-                  teamName={team.teamName}
-                  orderItems={team.items}
-                  totalQuantity={team.totalQuantity}
-                  totalAmount={team.totalAmount}
-                />
-              ))}
-            </div>
+            memberOrders.length === 0 ? (
+              <div className="empty-state">
+                <p>주문 내역이 없습니다.</p>
+              </div>
+            ) : (
+              <div className="member-cards">
+                {memberOrders.map((memberOrder) => (
+                  <MemberOrderCard
+                    key={memberOrder.member.id}
+                    member={memberOrder.member}
+                    orders={memberOrder.orders}
+                    onDelete={handleDeleteMemberOrders}
+                  />
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>

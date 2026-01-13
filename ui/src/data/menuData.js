@@ -32,9 +32,7 @@ export const menuData = [
 ];
 
 export const teams = [
-  { id: 1, name: '개발팀' },
-  { id: 2, name: '디자인팀' },
-  { id: 3, name: '기획팀' },
-  { id: 4, name: '마케팅팀' },
-  { id: 5, name: '인사팀' },
+  { id: 1, name: 'MSV프로젝트3팀' },
+  { id: 2, name: 'MSV프로젝트4팀' },
+  { id: 3, name: 'MSV프로젝트5팀' },
 ];

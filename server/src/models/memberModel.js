@@ -1,25 +1,25 @@
 import pool from '../config/database.js';
 
 // 멤버 조회 또는 생성
-export const findOrCreateMember = async (memberData) => {
+export const findOrCreateMember = async (memberData, client = pool) => {
   const { team, name, employee_id } = memberData;
 
   // 기존 멤버 조회
-  const existing = await pool.query(
+  const existing = await client.query(
     'SELECT * FROM members WHERE employee_id = $1',
     [employee_id]
   );
 
   if (existing.rows.length > 0) {
     // 기존 멤버 업데이트
-    const result = await pool.query(
+    const result = await client.query(
       'UPDATE members SET team = $1, name = $2, updated_at = CURRENT_TIMESTAMP WHERE employee_id = $3 RETURNING *',
       [team, name, employee_id]
     );
     return result.rows[0];
   } else {
     // 새 멤버 생성
-    const result = await pool.query(
+    const result = await client.query(
       'INSERT INTO members (team, name, employee_id) VALUES ($1, $2, $3) RETURNING *',
       [team, name, employee_id]
     );
@@ -62,4 +62,10 @@ export const getMembers = async (filters = {}) => {
 
   const result = await pool.query(query, params);
   return result.rows;
+};
+
+// employee_id로 멤버 조회
+export const getMemberByEmployeeId = async (employeeId) => {
+  const result = await pool.query('SELECT * FROM members WHERE employee_id = $1', [employeeId]);
+  return result.rows[0];
 };

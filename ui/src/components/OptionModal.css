@@ -151,3 +151,14 @@
 .confirm-button:hover {
   background-color: #1976D2;
 }
+
+.no-options-message {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.no-options-message p {
+  margin: 0;
+}

@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
 import { teams } from '../data/menuData';
+import { useRecommendations } from '../hooks/useRecommendations';
+import { formatOptions } from '../utils/optionUtils';
+import { generateCartItemKey } from '../utils/cartUtils';
 import './OrderSidebar.css';
 
 function OrderSidebar({ 
@@ -13,15 +16,16 @@ function OrderSidebar({
   onRemoveMenu,
   onQuantityChange,
   totalPrice,
-  onSubmit
+  isSubmitting = false,
+  onSubmit,
+  onRecommendationClick
 }) {
-  const isFormValid = selectedTeam && name && employeeId && selectedMenus.length > 0;
+  const isFormValid = selectedTeam && name && employeeId && selectedMenus.length > 0 && !isSubmitting;
+  const { recommendations, loading: loadingRecommendations } = useRecommendations(selectedTeam, name, employeeId);
 
   // 팀 목록을 한글 순서로 정렬
   const sortedTeams = useMemo(() => {
-    return [...teams].sort((a, b) => {
-      return a.name.localeCompare(b.name, 'ko');
-    });
+    return [...teams].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   }, []);
 
   return (
@@ -73,6 +77,36 @@ function OrderSidebar({
           />
         </div>
 
+        {/* 추천 메뉴 섹션 */}
+        {selectedTeam && name && employeeId && (
+          <div className="form-group">
+            <label>추천 메뉴</label>
+            {loadingRecommendations ? (
+              <div className="recommendations-loading">추천 메뉴를 불러오는 중...</div>
+            ) : recommendations.length > 0 ? (
+              <div className="recommendations-list">
+                {recommendations[0] && (
+                  <div key={recommendations[0].id} className="recommendation-item">
+                    <div className="recommendation-info">
+                      <div className="recommendation-name">{recommendations[0].name}</div>
+                      <div className="recommendation-category">{recommendations[0].category}</div>
+                      <div className="recommendation-price">{recommendations[0].base_price.toLocaleString()}원</div>
+                    </div>
+                    <button
+                      className="recommendation-add-btn"
+                      onClick={() => onRecommendationClick && onRecommendationClick(recommendations[0])}
+                    >
+                      추가하기
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="recommendations-empty">주문 이력이 없습니다.</div>
+            )}
+          </div>
+        )}
+
         <div className="form-group">
           <label>선택한 메뉴</label>
           <div className="selected-menus">
@@ -80,50 +114,48 @@ function OrderSidebar({
               <div className="empty-menu-message">메뉴를 선택해주세요</div>
             ) : (
               <div className="menu-list">
-                {selectedMenus.map((item, index) => (
-                  <div key={`${item.menu.id}-${index}-${JSON.stringify(item.options)}`} className="menu-item">
-                    <div className="menu-item-info">
-                      <div className="menu-item-name">{item.menu.name}</div>
-                      <div className="menu-item-options">
-                        {[
-                          // 아이스, 스무디, 설향, 스파클링 메뉴가 아닌 경우에만 temperature 표시
-                          item.menu.name && (item.menu.name.includes('아이스') || item.menu.name.includes('스무디') || item.menu.name.includes('설향') || item.menu.name.includes('스파클링')) 
-                            ? null 
-                            : item.options.temperature,
-                          item.options.size,
-                          item.options.shot,
-                          item.options.extra
-                        ].filter(Boolean).join(', ') || '기본 옵션'}
+                {selectedMenus.map((item, index) => {
+                  if (!item.menu) return null;
+                  
+                  const itemKey = generateCartItemKey(item.menu.id, item.options);
+                  const optionsText = formatOptions(item.options, item.menu);
+                  
+                  return (
+                    <div key={itemKey} className="menu-item">
+                      <div className="menu-item-info">
+                        <div className="menu-item-name">{item.menu.name}</div>
+                        <div className="menu-item-options">{optionsText}</div>
+                        <div className="menu-item-price">
+                          {(item.totalPrice || 0).toLocaleString()}원
+                        </div>
                       </div>
-                      <div className="menu-item-price">
-                        {item.totalPrice.toLocaleString()}원
+                      <div className="menu-item-controls">
+                        <div className="quantity-controls">
+                          <button
+                            className="quantity-btn"
+                            onClick={() => onQuantityChange(index, -1)}
+                            disabled={item.quantity <= 1}
+                          >
+                            -
+                          </button>
+                          <span className="quantity">{item.quantity}</span>
+                          <button
+                            className="quantity-btn"
+                            onClick={() => onQuantityChange(index, 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          className="remove-btn"
+                          onClick={() => onRemoveMenu(index)}
+                        >
+                          삭제
+                        </button>
                       </div>
                     </div>
-                    <div className="menu-item-controls">
-                      <div className="quantity-controls">
-                        <button
-                          className="quantity-btn"
-                          onClick={() => onQuantityChange(index, -1)}
-                        >
-                          -
-                        </button>
-                        <span className="quantity">{item.quantity}</span>
-                        <button
-                          className="quantity-btn"
-                          onClick={() => onQuantityChange(index, 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                      <button
-                        className="remove-btn"
-                        onClick={() => onRemoveMenu(index)}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -141,7 +173,7 @@ function OrderSidebar({
           disabled={!isFormValid}
           onClick={onSubmit}
         >
-          주문하기
+          {isSubmitting ? '주문 처리 중...' : '주문하기'}
         </button>
       </div>
     </div>

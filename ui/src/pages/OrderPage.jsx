@@ -2,102 +2,61 @@ import React, { useState } from 'react';
 import MenuSelection from '../components/MenuSelection';
 import OrderSidebar from '../components/OrderSidebar';
 import OptionModal from '../components/OptionModal';
-import { orderAPI } from '../utils/api';
-import { teams } from '../data/menuData';
+import { useOrder } from '../hooks/useOrder';
+import { getDefaultOptions } from '../utils/menuUtils';
 import './OrderPage.css';
 
 function OrderPage() {
-  const [selectedMenus, setSelectedMenus] = useState([]);
-  const [selectedTeam, setSelectedTeam] = useState('');
-  const [name, setName] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
+  
+  const {
+    selectedMenus,
+    selectedTeam,
+    name,
+    employeeId,
+    isSubmitting,
+    totalPrice,
+    setSelectedTeam,
+    setName,
+    setEmployeeId,
+    addMenuToCart,
+    removeMenu,
+    updateQuantity,
+    submitOrder
+  } = useOrder();
 
   const handleMenuSelect = (menu) => {
+    if (!menu) return;
     setSelectedMenu(menu);
     setIsModalOpen(true);
   };
 
   const handleOptionConfirm = (menuItem) => {
-    setSelectedMenus([...selectedMenus, menuItem]);
+    if (!menuItem || !menuItem.menu) return;
+    addMenuToCart(menuItem);
     setIsModalOpen(false);
     setSelectedMenu(null);
   };
 
-  const handleRemoveMenu = (index) => {
-    setSelectedMenus(selectedMenus.filter((_, i) => i !== index));
-  };
-
-  const handleQuantityChange = (index, change) => {
-    const updatedMenus = [...selectedMenus];
-    const menu = updatedMenus[index];
-    const newQuantity = Math.max(1, menu.quantity + change);
-    updatedMenus[index] = {
-      ...menu,
-      quantity: newQuantity,
-      totalPrice: menu.unitPrice * newQuantity
+  const handleRecommendationClick = (menu) => {
+    if (!menu) return;
+    
+    const defaultOptions = getDefaultOptions(menu);
+    const menuItem = {
+      menu,
+      options: {
+        temperature: defaultOptions.temperature,
+        size: defaultOptions.size,
+        shot: defaultOptions.shot,
+        extra: defaultOptions.extra
+      },
+      quantity: 1,
+      unitPrice: menu.base_price || 0,
+      totalPrice: menu.base_price || 0
     };
-    setSelectedMenus(updatedMenus);
-  };
-
-  const totalPrice = selectedMenus.reduce((sum, item) => sum + item.totalPrice, 0);
-
-  const handleSubmit = async () => {
-    // 입력 검증
-    if (!selectedTeam) {
-      alert('팀을 선택해주세요.');
-      return;
-    }
-    if (!name || name.trim() === '') {
-      alert('이름을 입력해주세요.');
-      return;
-    }
-    if (!employeeId || employeeId.trim() === '') {
-      alert('사원번호를 입력해주세요.');
-      return;
-    }
-    if (selectedMenus.length === 0) {
-      alert('메뉴를 선택해주세요.');
-      return;
-    }
-
-    const team = teams.find(t => t.id.toString() === selectedTeam);
-    const teamName = team ? team.name : selectedTeam;
-
-    // API 형식에 맞게 데이터 변환
-    const orderData = {
-      team: teamName,
-      name: name.trim(),
-      employee_id: employeeId.trim(),
-      menus: selectedMenus.map(item => ({
-        menu_id: item.menu.id,
-        quantity: item.quantity,
-        options: item.options
-      }))
-    };
-
-    try {
-      const response = await orderAPI.createOrder(orderData);
-      
-      if (response.success) {
-        // 주문 업데이트 이벤트 발생 (주문현황 화면 갱신용)
-        window.dispatchEvent(new Event('orderUpdated'));
-        
-        alert('주문이 완료되었습니다!');
-        
-        // 주문 후 초기화
-        setSelectedMenus([]);
-        setSelectedTeam('');
-        setName('');
-        setEmployeeId('');
-      } else {
-        alert(response.error || '주문 저장에 실패했습니다.');
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || '주문 저장에 실패했습니다. 다시 시도해주세요.';
-      alert(errorMessage);
-    }
+    
+    addMenuToCart(menuItem);
   };
 
   return (
@@ -112,10 +71,12 @@ function OrderPage() {
           employeeId={employeeId}
           onEmployeeIdChange={setEmployeeId}
           selectedMenus={selectedMenus}
-          onRemoveMenu={handleRemoveMenu}
-          onQuantityChange={handleQuantityChange}
+          onRemoveMenu={removeMenu}
+          onQuantityChange={updateQuantity}
           totalPrice={totalPrice}
-          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          onSubmit={submitOrder}
+          onRecommendationClick={handleRecommendationClick}
         />
       </div>
       {selectedMenu && (

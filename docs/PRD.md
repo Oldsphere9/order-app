@@ -21,17 +21,7 @@
 - 프런트엔드와 백엔드를 따로 개발
 - 기본적인 웹 기술만 사용
 - 소속 조직명, 사번, 이름으로 회원가입 기능은 있으나 결제 기능은 제외
-- 메뉴는 다음의 커피빈 공식 홈페이지를 크롤링 하여 리스트를 생성
-  * https://www.coffeebeankorea.com/menu/list.asp?category=32
-  * https://www.coffeebeankorea.com/menu/list.asp?category=13
-  * https://www.coffeebeankorea.com/menu/list.asp?category=14
-  * https://www.coffeebeankorea.com/menu/list.asp?category=18
-  * https://www.coffeebeankorea.com/menu/list.asp?category=17
-  * https://www.coffeebeankorea.com/menu/list.asp?category=12
-  * https://www.coffeebeankorea.com/menu/list.asp?category=11
-  * https://www.coffeebeankorea.com/menu/list.asp?category=26
-  * https://www.coffeebeankorea.com/menu/list.asp?category=6
-  * https://www.coffeebeankorea.com/menu/list.asp?category=4
+- 기본적인 메뉴는 커피빈 현대자동차남양연구소점 에서 판매하는 메뉴를 웹서치 하여 구성 
 
 
 ## 4. 주문하기 화면 상세 요구사항
@@ -83,7 +73,17 @@
      - 라벨: "사원번호"
      - 텍스트 입력 필드
      - 플레이스홀더: "사원번호를 입력하세요"
-  4. **선택한 메뉴**
+  4. **추천 메뉴** (조건부 표시)
+     - 라벨: "자주 주문한 메뉴"
+     - 주문 인원 정보(팀, 이름, 사원번호)가 모두 입력되고 해당 인원의 이전 주문 이력이 있는 경우에만 표시
+     - 최대 3개의 추천 메뉴를 카드 형태로 표시
+     - 각 추천 메뉴 카드 구성:
+       - 메뉴 이름
+       - 카테고리 라벨
+       - 기본 가격 정보
+       - "추가하기" 버튼
+     - 추천 메뉴 클릭 시 해당 메뉴가 장바구니에 추가됨 (옵션 선택 모달은 표시하지 않고 기본 옵션으로 추가)
+  5. **선택한 메뉴**
      - 라벨: "선택한 메뉴"
      - 메뉴가 선택되지 않은 경우: "메뉴를 선택해주세요" 플레이스홀더 표시
      - 메뉴가 선택된 경우: 선택된 메뉴 목록 표시
@@ -116,10 +116,23 @@
   - 메뉴 삭제 기능
   - 총 주문 금액 계산 및 표시
 
-#### 4.3.3 주문 제출 기능
+#### 4.3.3 메뉴 추천 기능
+- **추천 메뉴 조회**:
+  - 주문 인원 정보(팀, 이름, 사원번호)가 모두 입력되면 자동으로 추천 메뉴 조회 API 호출
+  - 해당 인원의 이전 주문 이력이 있는 경우에만 추천 메뉴 표시
+  - 추천 메뉴는 주문 횟수가 많은 순서로 최대 3개까지 표시
+  - 추천 메뉴는 판매 중(`sale_status: active`)인 메뉴만 표시
+- **추천 메뉴 선택**:
+  - 추천 메뉴 카드의 "추가하기" 버튼 클릭 시 해당 메뉴가 장바구니에 추가됨
+  - 추천 메뉴는 기본 옵션(Regular, 기본 샷, 추가 옵션 없음)으로 추가됨
+  - 온도 옵션은 메뉴 타입에 따라 자동 설정 (아이스/스무디/설향/스파클링 메뉴는 ICE, 그 외는 HOT)
+  - 추가된 메뉴는 일반 메뉴와 동일하게 수량 조절 및 삭제 가능
+
+#### 4.3.4 주문 제출 기능
 - 주문 정보 입력 완료 후 주문 제출 버튼 활성화
 - 필수 입력 항목(팀, 이름, 사원번호) 및 메뉴 선택 검증
 - 주문 제출 시 주문 데이터 저장 및 확인
+- 주문 저장 성공 시 해당 인원의 메뉴 선호도 정보 자동 업데이트
 
 ### 4.4 UI/UX 요구사항
 
@@ -207,12 +220,14 @@
   - **주문 내역 테이블**:
     - 테이블 컬럼:
       - **메뉴명**: 주문된 메뉴의 이름 (예: "카페 아메리카노")
-      - **옵션**: 선택된 옵션 정보 (예: "ICE, Grande, +1샷")
+      - **옵션**: 선택된 옵션 정보 (예: "ICE, Regular, +1샷")
       - **수량**: 주문 수량 (예: "1개")
       - **단가**: 메뉴의 단위 가격 (예: "5,500원")
       - **금액**: 해당 주문 항목의 총 금액 (예: "5,500원")
+      - **주문 일시**: 주문이 입력된 날짜와 시간 (예: "2024-01-15 14:30")
     - 각 주문 항목은 테이블의 한 행으로 표시
     - 여러 주문 항목이 있는 경우 여러 행으로 표시
+    - 주문 일시는 한국 시간대(KST)로 표시하며, 날짜와 시간 형식으로 표시 (예: "YYYY-MM-DD HH:mm")
 
 ### 5.3 기능 요구사항
 
@@ -351,13 +366,34 @@
 - `quantity` (Integer): 주문 수량
 - `options` (JSON): 선택한 옵션 정보
   - `temperature`: 온도 (HOT, ICE)
-  - `size`: 사이즈 (Regular, Grande, Venti)
+  - `size`: 사이즈 (Small, Regular, Large)
   - `shot`: 샷 추가 (기본, +1샷, +2샷)
   - `extra`: 추가 옵션 (휘핑크림 추가, 시럽 추가 등)
 - `unit_price` (Integer): 단위 가격 (원 단위)
 - `total_price` (Integer): 총 금액 (원 단위)
+- `created_at` (Timestamp): 주문 입력 일시 (주문이 생성된 날짜와 시간, 자동 저장)
+- `updated_at` (Timestamp): 수정 일시 (주문 정보가 수정된 날짜와 시간)
+
+**주문 날짜/시간 저장 규칙:**
+- 주문이 생성될 때 `created_at` 필드에 현재 서버 시간이 자동으로 저장됩니다.
+- `created_at`은 주문 입력 날짜와 시간을 나타내며, 주문 현황 조회 시 정렬 및 필터링에 사용됩니다.
+- 동일 주문 인원(`employee_id`)의 중복 주문이 있는 경우, `created_at`이 최신인 주문만 조회됩니다.
+
+#### 6.1.5 MemberMenuPreferences (주문 인원별 메뉴 선호도)
+주문 인원별로 자주 주문한 메뉴 정보를 집계하여 저장하는 테이블입니다. 메뉴 추천 기능에 사용됩니다.
+
+**필드:**
+- `id` (Primary Key): 선호도 고유 ID
+- `member_id` (Foreign Key): 주문 인원 ID (Members 테이블 참조)
+- `menu_id` (Foreign Key): 메뉴 ID (Menus 테이블 참조)
+- `order_count` (Integer): 해당 메뉴 주문 횟수 (기본값: 0)
+- `last_ordered_at` (Timestamp): 마지막 주문 일시
 - `created_at` (Timestamp): 생성 일시
 - `updated_at` (Timestamp): 수정 일시
+
+**제약 조건:**
+- `member_id`와 `menu_id`의 조합은 유니크 (동일 인원이 동일 메뉴를 여러 번 주문해도 하나의 레코드로 관리)
+- 주문이 발생할 때마다 `order_count` 증가 및 `last_ordered_at` 업데이트
 
 ### 6.2 데이터 스키마를 위한 사용자 흐름
 
@@ -400,7 +436,10 @@
    b. `Orders` 테이블에 주문 내용 저장
       - 각 메뉴 항목별로 주문 레코드 생성
       - `member_id`는 위에서 저장/업데이트한 Members의 ID 사용
+      - `created_at` 필드에 현재 서버 시간(주문 입력 날짜와 시간)이 자동으로 저장됨
+      - `updated_at` 필드는 초기에는 `created_at`과 동일한 값으로 설정됨
 5. 저장 완료 후 성공 응답을 프론트엔드에 전달합니다.
+   - 응답에는 저장된 주문의 `created_at` 정보가 포함될 수 있습니다.
 
 #### 6.2.5 주문 현황 조회
 1. 사용자가 '주문 현황' 메뉴를 클릭합니다.
@@ -420,6 +459,36 @@
 3. 백엔드는 `Members` 테이블에서 해당 조건에 맞는 멤버를 조회합니다.
 4. 조회된 멤버의 `member_id`를 사용하여 `Orders` 테이블에서 주문 내역을 조회합니다.
 5. 조회된 주문 정보를 프론트엔드에 전달합니다.
+
+#### 6.2.7 메뉴 추천 기능
+1. 사용자가 주문 인원 정보(팀, 이름, 사원번호)를 입력합니다.
+2. 프론트엔드에서 `GET /api/members/recommendations?team={team}&name={name}&employee_id={employee_id}` API를 호출합니다.
+3. 백엔드는 다음 순서로 처리합니다:
+   a. `Members` 테이블에서 입력된 정보로 멤버를 조회합니다.
+   b. 멤버가 존재하는 경우:
+      - `MemberMenuPreferences` 테이블에서 해당 `member_id`의 메뉴 선호도 정보를 조회합니다.
+      - `order_count`가 높은 순서로 정렬하여 상위 N개(기본 3개) 메뉴를 선택합니다.
+      - 동일한 `order_count`인 경우 `last_ordered_at`이 최신인 메뉴를 우선합니다.
+      - 선택된 메뉴의 `sale_status`가 `active`인 메뉴만 필터링합니다.
+   c. 멤버가 존재하지 않는 경우:
+      - 빈 배열을 반환합니다.
+4. 조회된 추천 메뉴 목록을 프론트엔드에 전달합니다.
+5. 프론트엔드는 추천 메뉴를 사이드바에 표시합니다.
+6. 사용자가 추천 메뉴를 클릭하면 해당 메뉴가 장바구니에 추가됩니다.
+
+#### 6.2.8 주문 발생 시 선호도 업데이트
+1. 사용자가 주문을 제출합니다 (`POST /api/orders`).
+2. 백엔드에서 주문이 성공적으로 저장된 후:
+   a. 각 주문 항목에 대해 `MemberMenuPreferences` 테이블을 확인합니다.
+   b. 해당 `member_id`와 `menu_id` 조합의 레코드가 존재하는 경우:
+      - `order_count`를 1 증가시킵니다.
+      - `last_ordered_at`을 현재 시간으로 업데이트합니다.
+      - `updated_at`을 현재 시간으로 업데이트합니다.
+   c. 레코드가 존재하지 않는 경우:
+      - 새로운 레코드를 생성합니다.
+      - `order_count`를 1로 설정합니다.
+      - `last_ordered_at`을 현재 시간으로 설정합니다.
+3. 선호도 업데이트는 주문 저장과 동일한 트랜잭션 내에서 처리됩니다.
 
 ### 6.3 API 설계
 
@@ -554,18 +623,23 @@
           "quantity": 1,
           "options": {
             "temperature": "ICE",
-            "size": "Grande",
+            "size": "Regular",
             "shot": "+1샷",
             "extra": ""
           },
           "unit_price": 5500,
           "total_price": 5500,
-          "created_at": "2024-01-01T00:00:00Z"
+          "created_at": "2024-01-15T14:30:00Z",
+          "updated_at": "2024-01-15T14:30:00Z"
         }
       ]
     }
   ]
   ```
+- **응답 필드 설명**:
+  - `created_at`: 주문이 입력된 날짜와 시간 (ISO 8601 형식, UTC 시간대)
+  - `updated_at`: 주문 정보가 마지막으로 수정된 날짜와 시간
+  - 프론트엔드에서는 `created_at`을 한국 시간대(KST)로 변환하여 표시해야 합니다.
 
 **GET /api/orders/stats**
 - **설명**: 주문 통계 정보를 조회합니다.
@@ -577,6 +651,56 @@
     "total_amount": 26000
   }
   ```
+
+#### 6.3.5 메뉴 추천 관련 API
+
+**GET /api/members/recommendations**
+- **설명**: 주문 인원 정보를 기반으로 자주 주문한 메뉴를 추천합니다.
+- **쿼리 파라미터**:
+  - `team` (필수): 팀 이름
+  - `name` (필수): 이름
+  - `employee_id` (필수): 사원번호
+  - `limit` (선택): 추천 메뉴 개수 (기본값: 3, 최대: 5)
+- **응답**:
+  ```json
+  [
+    {
+      "id": 1,
+      "name": "카페 아메리카노",
+      "description": "진한 에스프레소에 물을 더한 커피",
+      "category": "커피",
+      "base_price": 4500,
+      "sale_status": "active",
+      "order_count": 5,
+      "last_ordered_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "name": "카페라떼",
+      "description": "에스프레소와 스팀 밀크",
+      "category": "커피",
+      "base_price": 5000,
+      "sale_status": "active",
+      "order_count": 3,
+      "last_ordered_at": "2024-01-14T14:20:00Z"
+    }
+  ]
+  ```
+- **에러 응답** (멤버를 찾을 수 없는 경우):
+  ```json
+  {
+    "success": false,
+    "error": "주문 이력이 없습니다.",
+    "code": "NO_ORDER_HISTORY"
+  }
+  ```
+- **비즈니스 로직**:
+  - 입력된 정보로 `Members` 테이블에서 멤버 조회
+  - 멤버가 존재하는 경우 `MemberMenuPreferences` 테이블에서 해당 멤버의 선호도 정보 조회
+  - `order_count` 내림차순, `last_ordered_at` 내림차순으로 정렬
+  - `sale_status`가 `active`인 메뉴만 필터링
+  - `limit` 파라미터에 따라 상위 N개 메뉴 반환
+  - 멤버가 존재하지 않거나 주문 이력이 없는 경우 빈 배열 반환
 
 #### 6.3.4 에러 처리
 
@@ -602,21 +726,33 @@
 ```
 Menus (1) ──< (N) Options
   │
-  │ (1)
-  │
-  └──< (N) Orders
-        │
-        │ (N)
-        │
+  │ (1)              (1)
+  │                  │
+  └──< (N) Orders    │
+        │            │
+        │ (N)        │
+        │            │
         └──> (1) Members
+              │
+              │ (1)
+              │
+              └──< (N) MemberMenuPreferences
+                    │
+                    │ (N)
+                    │
+                    └──> (1) Menus
 ```
 
 #### 6.4.2 주요 제약 조건
 - `Orders.member_id`는 `Members.id`를 참조 (Foreign Key)
 - `Orders.menu_id`는 `Menus.id`를 참조 (Foreign Key)
 - `Options.menu_id`는 `Menus.id`를 참조 (Foreign Key, NULL 허용)
+- `MemberMenuPreferences.member_id`는 `Members.id`를 참조 (Foreign Key)
+- `MemberMenuPreferences.menu_id`는 `Menus.id`를 참조 (Foreign Key)
 - `Members.employee_id`는 유니크 제약 조건 (동일 사원번호 중복 방지)
+- `MemberMenuPreferences` 테이블의 `member_id`와 `menu_id` 조합은 유니크 제약 조건
 - 동일 `employee_id`로 주문 시 기존 `Members` 레코드 업데이트 후 새로운 `Orders` 레코드 생성
+- 주문 발생 시 `MemberMenuPreferences` 테이블의 해당 레코드 업데이트 또는 생성
 
 ### 6.5 비즈니스 로직
 
@@ -629,7 +765,11 @@ Menus (1) ──< (N) Options
    - 존재하는 경우: 해당 멤버 정보 업데이트 (팀, 이름)
    - 존재하지 않는 경우: 새 멤버 생성
 6. Orders 테이블에 주문 항목 저장
-7. 성공 응답 반환
+7. 각 주문 항목에 대해 MemberMenuPreferences 테이블 업데이트
+   - 해당 `member_id`와 `menu_id` 조합의 레코드 조회
+   - 존재하는 경우: `order_count` 증가, `last_ordered_at` 및 `updated_at` 업데이트
+   - 존재하지 않는 경우: 새 레코드 생성 (`order_count: 1`, `last_ordered_at: 현재 시간`)
+8. 성공 응답 반환
 
 #### 6.5.2 주문 조회 로직
 1. 쿼리 파라미터에 따라 필터링 조건 설정
@@ -642,4 +782,16 @@ Menus (1) ──< (N) Options
 #### 6.5.3 Season Off 메뉴 처리
 - `sale_status`가 `season_off`인 메뉴는 주문하기 화면에 표시되지 않음
 - Season off 메뉴를 주문하려고 시도할 경우 에러 메시지 반환
-- 메뉴 관리 화면에서만 Season off 메뉴 조회 및 상태 변경 가능 
+- 메뉴 관리 화면에서만 Season off 메뉴 조회 및 상태 변경 가능
+
+#### 6.5.4 메뉴 추천 로직
+1. 주문 인원 정보(팀, 이름, 사원번호) 수신
+2. Members 테이블에서 해당 정보로 멤버 조회
+3. 멤버가 존재하는 경우:
+   - MemberMenuPreferences 테이블에서 해당 `member_id`의 모든 레코드 조회
+   - `order_count` 내림차순, `last_ordered_at` 내림차순으로 정렬
+   - `sale_status`가 `active`인 메뉴만 필터링
+   - 상위 N개(기본 3개) 메뉴 선택
+4. 멤버가 존재하지 않거나 주문 이력이 없는 경우:
+   - 빈 배열 반환
+5. 추천 메뉴 목록 반환 

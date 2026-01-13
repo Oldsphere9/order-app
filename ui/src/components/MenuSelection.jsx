@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { menuAPI } from '../utils/api';
 import './MenuSelection.css';
 
@@ -19,24 +19,46 @@ function MenuSelection({ onMenuSelect }) {
       setError(null);
       // 판매 중인 메뉴만 조회
       const data = await menuAPI.getMenus({ status: 'active' });
-      setMenus(data);
+      setMenus(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('메뉴 로딩 실패:', err);
-      const errorMessage = err.response?.data?.error || err.message || '메뉴를 불러오는데 실패했습니다.';
+      
+      // Network Error 처리
+      let errorMessage = '메뉴를 불러오는데 실패했습니다.';
+      
+      if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+        errorMessage = '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.';
+      } else if (err.response) {
+        // 서버에서 응답이 온 경우
+        errorMessage = err.response.data?.error || err.response.data?.message || `서버 오류: ${err.response.status}`;
+      } else if (err.request) {
+        // 요청은 보냈지만 응답을 받지 못한 경우
+        errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.';
+      } else {
+        // 요청 설정 중 오류 발생
+        errorMessage = err.message || '메뉴를 불러오는데 실패했습니다.';
+      }
+      
       setError(errorMessage);
       console.error('상세 에러:', {
         message: err.message,
+        code: err.code,
         response: err.response?.data,
-        status: err.response?.status
+        status: err.response?.status,
+        request: err.request
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredMenus = selectedCategory === '전체'
-    ? menus
-    : menus.filter(menu => menu.category === selectedCategory);
+  // 필터링 결과를 메모이제이션하여 성능 최적화
+  const filteredMenus = useMemo(() => {
+    if (selectedCategory === '전체') {
+      return menus;
+    }
+    return menus.filter(menu => menu.category === selectedCategory);
+  }, [menus, selectedCategory]);
 
   return (
     <div className="menu-selection">

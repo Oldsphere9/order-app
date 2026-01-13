@@ -12,7 +12,15 @@
     "insert-menus": "node src/scripts/insertInitialMenus.js",
     "update-menu-names": "node src/scripts/updateMenuNames.js",
     "crawl-menus": "node src/scripts/crawlMenuList.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "menu-list": "node src/scripts/manageMenus.js list",
+    "menu-show": "node src/scripts/manageMenus.js show",
+    "menu-update": "node src/scripts/manageMenus.js update",
+    "menu-delete": "node src/scripts/manageMenus.js delete",
+    "update-store-menus": "node src/scripts/updateStoreMenus.js",
+    "delete-non-store-menus": "node src/scripts/deleteNonStoreMenus.js",
+    "update-member-menu-preferences-table": "node src/scripts/updateMemberMenuPreferencesTable.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "create-member-menu-preferences-table": "node src/scripts/createMemberMenuPreferencesTable.js"
   },
   "keywords": [
     "express",
