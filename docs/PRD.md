@@ -283,4 +283,352 @@
 - 주문 데이터 로딩 실패 시 에러 메시지 표시
 - 주문이 없는 경우 "주문 내역이 없습니다" 메시지 표시
 - 네트워크 오류 시 사용자에게 알림 및 재시도 옵션 제공
-- 데이터 형식 오류 시 안전하게 처리 
+- 데이터 형식 오류 시 안전하게 처리
+
+## 6. 백엔드 개발 요구사항
+
+### 6.1 데이터 모델
+
+#### 6.1.1 Menus (메뉴)
+메뉴 정보를 저장하는 테이블입니다.
+
+**필드:**
+- `id` (Primary Key): 메뉴 고유 ID
+- `name` (String): 메뉴 이름 (예: "카페 아메리카노")
+- `description` (String): 메뉴 설명
+- `category` (String): 카테고리 (커피, 논커피, 디저트)
+- `base_price` (Integer): 기본 가격 (원 단위)
+- `sale_status` (String): 판매 상태
+  - `active`: 판매 중
+  - `season_off`: 시즌 오프 (판매 중지)
+- `created_at` (Timestamp): 생성 일시
+- `updated_at` (Timestamp): 수정 일시
+
+#### 6.1.2 Options (옵션)
+메뉴 옵션 정보를 저장하는 테이블입니다.
+
+**필드:**
+- `id` (Primary Key): 옵션 고유 ID
+- `name` (String): 옵션 이름 (예: "Grande", "+1샷", "휘핑크림 추가")
+- `option_type` (String): 옵션 타입 (temperature, size, shot, extra)
+- `price` (Integer): 옵션 추가 가격 (원 단위)
+- `menu_id` (Foreign Key): 연결된 메뉴 ID (NULL일 경우 모든 메뉴에 적용 가능)
+- `created_at` (Timestamp): 생성 일시
+- `updated_at` (Timestamp): 수정 일시
+
+#### 6.1.3 Members (주문 인원)
+주문한 인원 정보를 저장하는 테이블입니다.
+
+**필드:**
+- `id` (Primary Key): 멤버 고유 ID
+- `team` (String): 팀 이름 (예: "개발팀", "디자인팀")
+- `name` (String): 이름
+- `employee_id` (String): 사원번호
+- `created_at` (Timestamp): 생성 일시
+- `updated_at` (Timestamp): 수정 일시
+
+**제약 조건:**
+- 동일한 사원번호(`employee_id`)로 중복 주문 시 최신 주문 정보로 업데이트
+
+#### 6.1.4 Orders (주문)
+주문 내용을 저장하는 테이블입니다.
+
+**필드:**
+- `id` (Primary Key): 주문 고유 ID
+- `member_id` (Foreign Key): 주문 인원 ID (Members 테이블 참조)
+- `menu_id` (Foreign Key): 메뉴 ID (Menus 테이블 참조)
+- `quantity` (Integer): 주문 수량
+- `options` (JSON): 선택한 옵션 정보
+  - `temperature`: 온도 (HOT, ICE)
+  - `size`: 사이즈 (Regular, Grande, Venti)
+  - `shot`: 샷 추가 (기본, +1샷, +2샷)
+  - `extra`: 추가 옵션 (휘핑크림 추가, 시럽 추가 등)
+- `unit_price` (Integer): 단위 가격 (원 단위)
+- `total_price` (Integer): 총 금액 (원 단위)
+- `created_at` (Timestamp): 생성 일시
+- `updated_at` (Timestamp): 수정 일시
+
+### 6.2 데이터 스키마를 위한 사용자 흐름
+
+#### 6.2.1 메뉴 조회 및 표시
+1. 사용자가 '주문하기' 메뉴를 클릭합니다.
+2. 프론트엔드에서 `GET /api/menus` API를 호출합니다.
+3. 백엔드는 데이터베이스의 `Menus` 테이블에서 `sale_status`가 `active`인 메뉴만 조회합니다.
+4. 조회된 메뉴 정보를 프론트엔드에 전달합니다.
+5. 프론트엔드는 받은 메뉴 정보를 화면에 표시합니다.
+6. `sale_status`가 `season_off`인 메뉴는 '메뉴 관리' 화면에만 표시됩니다.
+
+#### 6.2.2 메뉴 관리 (Season Off 처리)
+1. 관리자가 '메뉴 관리' 메뉴를 클릭합니다.
+2. 프론트엔드에서 `GET /api/menus?status=season_off` API를 호출합니다.
+3. 백엔드는 데이터베이스의 `Menus` 테이블에서 `sale_status`가 `season_off`인 메뉴를 조회합니다.
+4. 조회된 메뉴 목록을 프론트엔드에 전달합니다.
+5. 관리자가 season off 메뉴를 선택하고 판매 상태를 변경합니다.
+6. 프론트엔드에서 `PATCH /api/menus/:id` API를 호출하여 메뉴 정보를 업데이트합니다.
+7. 백엔드는 `Menus` 테이블의 해당 메뉴 정보를 업데이트합니다.
+   - `sale_status`를 `active` 또는 `season_off`로 변경
+   - `updated_at` 필드 업데이트
+
+#### 6.2.3 메뉴 선택 및 장바구니
+1. 사용자가 메뉴를 선택하고 옵션을 설정합니다.
+2. 선택한 메뉴 정보는 프론트엔드의 장바구니(임시 저장)에 추가됩니다.
+3. 장바구니에 선택한 메뉴 목록이 표시됩니다.
+4. 사용자는 장바구니에서 수량을 조절하거나 메뉴를 삭제할 수 있습니다.
+
+#### 6.2.4 주문 제출
+1. 사용자가 장바구니에서 '주문하기' 버튼을 클릭합니다.
+2. 프론트엔드에서 주문 정보를 검증합니다.
+   - 필수 입력 항목 확인 (팀, 이름, 사원번호)
+   - 메뉴 선택 여부 확인
+   - Season off 메뉴 주문 시도 시 에러 처리
+3. 프론트엔드에서 `POST /api/orders` API를 호출합니다.
+4. 백엔드는 다음 순서로 데이터를 저장합니다:
+   a. `Members` 테이블에 주문 인원 정보 저장 또는 업데이트
+      - 동일한 `employee_id`가 존재하는 경우 기존 레코드 업데이트
+      - 존재하지 않는 경우 새 레코드 생성
+   b. `Orders` 테이블에 주문 내용 저장
+      - 각 메뉴 항목별로 주문 레코드 생성
+      - `member_id`는 위에서 저장/업데이트한 Members의 ID 사용
+5. 저장 완료 후 성공 응답을 프론트엔드에 전달합니다.
+
+#### 6.2.5 주문 현황 조회
+1. 사용자가 '주문 현황' 메뉴를 클릭합니다.
+2. 프론트엔드에서 `GET /api/orders` API를 호출합니다.
+3. 백엔드는 다음 정보를 조회합니다:
+   - `Members` 테이블과 `Orders` 테이블을 JOIN하여 주문 정보 조회
+   - 동일 주문 인원(`employee_id`)의 중복 주문이 있는 경우 최신 주문 정보만 반환
+   - 팀별로 그룹화하여 주문 내역 집계
+4. 조회된 주문 정보를 프론트엔드에 전달합니다.
+5. 프론트엔드는 받은 정보를 화면에 표시합니다.
+   - 전체 주문 수량, 참여 팀 수, 총 주문 금액 통계
+   - 팀별 주문 현황 테이블
+
+#### 6.2.6 주문 인원별 주문 조회
+1. 사용자가 주문 인원 정보(팀, 이름, 사원번호)를 입력합니다.
+2. 프론트엔드에서 `GET /api/orders?team={team}&name={name}&employee_id={employee_id}` API를 호출합니다.
+3. 백엔드는 `Members` 테이블에서 해당 조건에 맞는 멤버를 조회합니다.
+4. 조회된 멤버의 `member_id`를 사용하여 `Orders` 테이블에서 주문 내역을 조회합니다.
+5. 조회된 주문 정보를 프론트엔드에 전달합니다.
+
+### 6.3 API 설계
+
+#### 6.3.1 메뉴 관련 API
+
+**GET /api/menus**
+- **설명**: 판매 중인 메뉴 목록을 조회합니다.
+- **쿼리 파라미터**:
+  - `category` (선택): 카테고리 필터 (커피, 논커피, 디저트)
+  - `status` (선택): 판매 상태 필터 (active, season_off)
+- **응답**:
+  ```json
+  [
+    {
+      "id": 1,
+      "name": "카페 아메리카노",
+      "description": "진한 에스프레소에 물을 더한 커피",
+      "category": "커피",
+      "base_price": 4500,
+      "sale_status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+  ```
+
+**GET /api/menus/:id**
+- **설명**: 특정 메뉴의 상세 정보를 조회합니다.
+- **응답**: 메뉴 객체
+
+**PATCH /api/menus/:id**
+- **설명**: 메뉴 정보를 업데이트합니다 (주로 판매 상태 변경).
+- **요청 본문**:
+  ```json
+  {
+    "sale_status": "active" | "season_off"
+  }
+  ```
+- **응답**: 업데이트된 메뉴 객체
+
+#### 6.3.2 옵션 관련 API
+
+**GET /api/options**
+- **설명**: 옵션 목록을 조회합니다.
+- **쿼리 파라미터**:
+  - `menu_id` (선택): 특정 메뉴에 연결된 옵션만 조회
+  - `option_type` (선택): 옵션 타입 필터 (temperature, size, shot, extra)
+- **응답**:
+  ```json
+  [
+    {
+      "id": 1,
+      "name": "Grande",
+      "option_type": "size",
+      "price": 500,
+      "menu_id": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+  ```
+
+#### 6.3.3 주문 관련 API
+
+**POST /api/orders**
+- **설명**: 새로운 주문을 생성합니다.
+- **요청 본문**:
+  ```json
+  {
+    "team": "개발팀",
+    "name": "홍길동",
+    "employee_id": "E001",
+    "menus": [
+      {
+        "menu_id": 1,
+        "quantity": 1,
+        "options": {
+          "temperature": "ICE",
+          "size": "Grande",
+          "shot": "+1샷",
+          "extra": ""
+        }
+      }
+    ]
+  }
+  ```
+- **검증**:
+  - 필수 필드 검증 (team, name, employee_id, menus)
+  - 메뉴의 `sale_status`가 `season_off`인 경우 에러 반환
+  - 옵션 가격 계산 및 총 금액 계산
+- **응답**:
+  ```json
+  {
+    "success": true,
+    "message": "주문이 완료되었습니다.",
+    "order_id": 123
+  }
+  ```
+- **에러 응답** (Season off 메뉴 주문 시도):
+  ```json
+  {
+    "success": false,
+    "error": "Season off 메뉴로 주문이 안됩니다.",
+    "menu_name": "카페 아메리카노"
+  }
+  ```
+
+**GET /api/orders**
+- **설명**: 주문 목록을 조회합니다.
+- **쿼리 파라미터**:
+  - `team` (선택): 팀 이름 필터
+  - `name` (선택): 이름 필터
+  - `employee_id` (선택): 사원번호 필터
+- **응답**:
+  ```json
+  [
+    {
+      "member": {
+        "id": 1,
+        "team": "개발팀",
+        "name": "홍길동",
+        "employee_id": "E001"
+      },
+      "orders": [
+        {
+          "id": 1,
+          "menu": {
+            "id": 1,
+            "name": "카페 아메리카노",
+            "category": "커피"
+          },
+          "quantity": 1,
+          "options": {
+            "temperature": "ICE",
+            "size": "Grande",
+            "shot": "+1샷",
+            "extra": ""
+          },
+          "unit_price": 5500,
+          "total_price": 5500,
+          "created_at": "2024-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ]
+  ```
+
+**GET /api/orders/stats**
+- **설명**: 주문 통계 정보를 조회합니다.
+- **응답**:
+  ```json
+  {
+    "total_quantity": 4,
+    "team_count": 2,
+    "total_amount": 26000
+  }
+  ```
+
+#### 6.3.4 에러 처리
+
+**공통 에러 응답 형식:**
+```json
+{
+  "success": false,
+  "error": "에러 메시지",
+  "code": "ERROR_CODE"
+}
+```
+
+**주요 에러 코드:**
+- `MENU_NOT_FOUND`: 메뉴를 찾을 수 없음
+- `MENU_SEASON_OFF`: Season off 메뉴는 주문할 수 없음
+- `INVALID_INPUT`: 잘못된 입력 데이터
+- `DATABASE_ERROR`: 데이터베이스 오류
+- `INTERNAL_ERROR`: 서버 내부 오류
+
+### 6.4 데이터베이스 관계
+
+#### 6.4.1 테이블 관계도
+```
+Menus (1) ──< (N) Options
+  │
+  │ (1)
+  │
+  └──< (N) Orders
+        │
+        │ (N)
+        │
+        └──> (1) Members
+```
+
+#### 6.4.2 주요 제약 조건
+- `Orders.member_id`는 `Members.id`를 참조 (Foreign Key)
+- `Orders.menu_id`는 `Menus.id`를 참조 (Foreign Key)
+- `Options.menu_id`는 `Menus.id`를 참조 (Foreign Key, NULL 허용)
+- `Members.employee_id`는 유니크 제약 조건 (동일 사원번호 중복 방지)
+- 동일 `employee_id`로 주문 시 기존 `Members` 레코드 업데이트 후 새로운 `Orders` 레코드 생성
+
+### 6.5 비즈니스 로직
+
+#### 6.5.1 주문 처리 로직
+1. 주문 요청 수신
+2. 메뉴 유효성 검증 (존재 여부, 판매 상태 확인)
+3. 옵션 가격 계산
+4. 총 금액 계산
+5. Members 테이블에서 `employee_id`로 기존 멤버 조회
+   - 존재하는 경우: 해당 멤버 정보 업데이트 (팀, 이름)
+   - 존재하지 않는 경우: 새 멤버 생성
+6. Orders 테이블에 주문 항목 저장
+7. 성공 응답 반환
+
+#### 6.5.2 주문 조회 로직
+1. 쿼리 파라미터에 따라 필터링 조건 설정
+2. Members와 Orders 테이블 JOIN
+3. 동일 `employee_id`의 중복 주문이 있는 경우 최신 주문만 반환
+4. 팀별로 그룹화하여 집계
+5. 통계 정보 계산 (전체 주문 수량, 참여 팀 수, 총 주문 금액)
+6. 결과 반환
+
+#### 6.5.3 Season Off 메뉴 처리
+- `sale_status`가 `season_off`인 메뉴는 주문하기 화면에 표시되지 않음
+- Season off 메뉴를 주문하려고 시도할 경우 에러 메시지 반환
+- 메뉴 관리 화면에서만 Season off 메뉴 조회 및 상태 변경 가능 
