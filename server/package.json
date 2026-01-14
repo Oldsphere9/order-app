@@ -19,6 +19,7 @@
     "update-store-menus": "node src/scripts/updateStoreMenus.js",
     "delete-non-store-menus": "node src/scripts/deleteNonStoreMenus.js",
     "update-member-menu-preferences-table": "node src/scripts/updateMemberMenuPreferencesTable.js",
+    "update-members-schema": "node src/scripts/updateMembersTableSchema.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "create-member-menu-preferences-table": "node src/scripts/createMemberMenuPreferencesTable.js"
   },

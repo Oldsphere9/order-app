@@ -16,25 +16,20 @@ export const findOrCreateMember = async (memberData, client = pool) => {
     return existing.rows[0];
   } else {
     // 동일 인원이 없음 - 새 멤버 생성
-    // 단, employee_id가 이미 존재하는 경우를 확인 (UNIQUE 제약조건 위반 방지)
-    const existingEmployeeId = await client.query(
-      'SELECT * FROM members WHERE employee_id = $1',
-      [employee_id]
-    );
-    
-    if (existingEmployeeId.rows.length > 0) {
-      // 같은 사원번호지만 팀이나 이름이 다른 경우 - 다른 인원으로 새 멤버 생성 불가
-      // 이 경우는 데이터베이스 제약조건에 의해 처리됨
-      // 하지만 더 명확한 에러 메시지를 위해 체크
-      throw new Error(`사원번호 ${employee_id}는 이미 다른 인원(${existingEmployeeId.rows[0].name}, ${existingEmployeeId.rows[0].team})으로 등록되어 있습니다.`);
+    // 팀, 이름, 사원번호가 모두 일치하는 멤버가 없으면 다른 인원으로 처리
+    // 같은 사원번호라도 팀이나 이름이 다르면 다른 인원으로 새 멤버 생성 가능
+    try {
+      const result = await client.query(
+        'INSERT INTO members (team, name, employee_id) VALUES ($1, $2, $3) RETURNING *',
+        [team, name, employee_id]
+      );
+      return result.rows[0];
+    } catch (error) {
+      // 데이터베이스 제약조건 위반 시 (예: employee_id UNIQUE 제약조건)
+      // 이 경우는 데이터베이스 스키마를 변경해야 함
+      // 임시로 에러를 다시 throw하여 상위에서 처리하도록 함
+      throw error;
     }
-    
-    // 새 멤버 생성
-    const result = await client.query(
-      'INSERT INTO members (team, name, employee_id) VALUES ($1, $2, $3) RETURNING *',
-      [team, name, employee_id]
-    );
-    return result.rows[0];
   }
 };
 

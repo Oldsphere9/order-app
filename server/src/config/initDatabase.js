@@ -41,6 +41,47 @@ async function initDatabase() {
       console.log('time_pattern 컬럼 마이그레이션 스킵:', migrationError.message);
     }
     
+    // Members 테이블 스키마 업데이트 (employee_id UNIQUE 제약조건 변경)
+    try {
+      // 기존 employee_id UNIQUE 제약조건 찾기
+      const constraintCheck = await client.query(`
+        SELECT constraint_name 
+        FROM information_schema.table_constraints 
+        WHERE table_name = 'members' 
+        AND constraint_type = 'UNIQUE'
+        AND constraint_name LIKE '%employee_id%'
+      `);
+      
+      // 기존 employee_id UNIQUE 제약조건 제거
+      if (constraintCheck.rows.length > 0) {
+        for (const constraint of constraintCheck.rows) {
+          const constraintName = constraint.constraint_name;
+          await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+        }
+        console.log('✅ 기존 employee_id UNIQUE 제약조건 제거 완료');
+      }
+      
+      // (team, name, employee_id) 조합에 UNIQUE 제약조건 추가
+      const existingCompositeConstraint = await client.query(`
+        SELECT constraint_name 
+        FROM information_schema.table_constraints 
+        WHERE table_name = 'members' 
+        AND constraint_type = 'UNIQUE'
+        AND constraint_name = 'members_team_name_employee_id_unique'
+      `);
+      
+      if (existingCompositeConstraint.rows.length === 0) {
+        await client.query(`
+          ALTER TABLE members 
+          ADD CONSTRAINT members_team_name_employee_id_unique 
+          UNIQUE (team, name, employee_id)
+        `);
+        console.log('✅ (team, name, employee_id) UNIQUE 제약조건 추가 완료');
+      }
+    } catch (migrationError) {
+      console.log('Members 테이블 스키마 마이그레이션 스킵:', migrationError.message);
+    }
+    
     // closed_orders 테이블 생성 (주문 마감 기능)
     try {
       await client.query(`
