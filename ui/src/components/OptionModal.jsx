@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { shouldHideTemperature, isDessertMenu, getDefaultOptions } from '../utils/menuUtils';
 import { calculateOptionPrice } from '../utils/optionPricing';
 import './OptionModal.css';
@@ -29,13 +29,13 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
     }
   }, [menu]);
 
-  const calculatePrice = () => {
+  // 가격 계산을 useMemo로 최적화
+  const calculatedPrice = useMemo(() => {
     const basePrice = menu.base_price || menu.basePrice || 0;
     return calculateOptionPrice(basePrice, options, isDessert);
-  };
+  }, [menu.base_price, menu.basePrice, options, isDessert]);
 
   const handleConfirm = () => {
-    const calculatedPrice = calculatePrice();
     onConfirm({
       menu,
       options,
@@ -164,7 +164,7 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
 
           <div className="price-preview">
             <span>예상 가격: </span>
-            <span className="price-amount">{calculatePrice().toLocaleString()}원</span>
+            <span className="price-amount">{calculatedPrice.toLocaleString()}원</span>
           </div>
         </div>
 

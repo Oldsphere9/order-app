@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { orderAPI } from '../utils/api';
 import StatsCards from '../components/StatsCards';
 import TeamOrderCard from '../components/TeamOrderCard';
@@ -19,62 +19,8 @@ function StatusPage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('team'); // 'team' or 'member'
 
-  useEffect(() => {
-    loadData();
-    // 주문 페이지에서 주문이 완료되면 상태 업데이트를 위한 커스텀 이벤트
-    const handleOrderUpdated = () => {
-      loadData();
-    };
-    window.addEventListener('orderUpdated', handleOrderUpdated);
-    
-    return () => {
-      window.removeEventListener('orderUpdated', handleOrderUpdated);
-    };
-  }, []);
-
-  // 화면이 포커스를 받을 때 데이터 갱신
-  useEffect(() => {
-    const handleFocus = () => {
-      loadData();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // 주문 목록과 통계를 동시에 조회
-      const [ordersData, statsData] = await Promise.all([
-        orderAPI.getOrders(),
-        orderAPI.getOrderStats()
-      ]);
-      
-      // 통계 설정
-      setStats({
-        totalQuantity: statsData.total_quantity || 0,
-        teamCount: statsData.team_count || 0,
-        totalAmount: statsData.total_amount || 0
-      });
-      
-      // 주문 데이터 처리 (팀별로 그룹화 및 동일 옵션 메뉴별 집계)
-      processOrders(ordersData);
-      
-      // 주문 인원별 데이터 처리
-      processMemberOrders(ordersData);
-    } catch (err) {
-      console.error('데이터 로딩 실패:', err);
-      setError('데이터를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processOrders = (ordersData) => {
+  // processOrders와 processMemberOrders를 useCallback으로 최적화
+  const processOrders = useCallback((ordersData) => {
     if (!Array.isArray(ordersData) || ordersData.length === 0) {
       setTeamOrders([]);
       return;
@@ -134,9 +80,9 @@ function StatusPage() {
     });
 
     setTeamOrders(teamOrdersArray);
-  };
+  }, []);
 
-  const processMemberOrders = (ordersData) => {
+  const processMemberOrders = useCallback((ordersData) => {
     if (!Array.isArray(ordersData) || ordersData.length === 0) {
       setMemberOrders([]);
       return;
@@ -154,7 +100,63 @@ function StatusPage() {
     });
 
     setMemberOrders(memberOrdersArray);
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 주문 목록과 통계를 동시에 조회
+      const [ordersData, statsData] = await Promise.all([
+        orderAPI.getOrders(),
+        orderAPI.getOrderStats()
+      ]);
+      
+      // 통계 설정
+      setStats({
+        totalQuantity: statsData.total_quantity || 0,
+        teamCount: statsData.team_count || 0,
+        totalAmount: statsData.total_amount || 0
+      });
+      
+      // 주문 데이터 처리 (팀별로 그룹화 및 동일 옵션 메뉴별 집계)
+      processOrders(ordersData);
+      
+      // 주문 인원별 데이터 처리
+      processMemberOrders(ordersData);
+    } catch (err) {
+      console.error('데이터 로딩 실패:', err);
+      setError('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, [processOrders, processMemberOrders]);
+
+  useEffect(() => {
+    loadData();
+    // 주문 페이지에서 주문이 완료되면 상태 업데이트를 위한 커스텀 이벤트
+    const handleOrderUpdated = () => {
+      loadData();
+    };
+    window.addEventListener('orderUpdated', handleOrderUpdated);
+    
+    return () => {
+      window.removeEventListener('orderUpdated', handleOrderUpdated);
+    };
+  }, [loadData]);
+
+  // 화면이 포커스를 받을 때 데이터 갱신
+  useEffect(() => {
+    const handleFocus = () => {
+      loadData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadData]);
+
 
   const handleDeleteMemberOrders = async (memberId) => {
     if (!memberId) return;

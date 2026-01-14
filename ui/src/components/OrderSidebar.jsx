@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { teams } from '../data/menuData';
 import { useRecommendations } from '../hooks/useRecommendations';
-import { formatOptions } from '../utils/optionUtils';
 import { generateCartItemKey } from '../utils/cartUtils';
+import CartItem from './CartItem';
 import './OrderSidebar.css';
 
 function OrderSidebar({ 
@@ -20,8 +20,12 @@ function OrderSidebar({
   onSubmit,
   onRecommendationClick
 }) {
-  const isFormValid = selectedTeam && name && employeeId && selectedMenus.length > 0 && !isSubmitting;
   const { recommendations, loading: loadingRecommendations } = useRecommendations(selectedTeam, name, employeeId);
+
+  // 폼 유효성 검사를 useMemo로 최적화
+  const isFormValid = useMemo(() => {
+    return selectedTeam && name && employeeId && selectedMenus.length > 0 && !isSubmitting;
+  }, [selectedTeam, name, employeeId, selectedMenus.length, isSubmitting]);
 
   // 팀 목록을 한글 순서로 정렬
   const sortedTeams = useMemo(() => {
@@ -114,48 +118,15 @@ function OrderSidebar({
               <div className="empty-menu-message">메뉴를 선택해주세요</div>
             ) : (
               <div className="menu-list">
-                {selectedMenus.map((item, index) => {
-                  if (!item.menu) return null;
-                  
-                  const itemKey = generateCartItemKey(item.menu.id, item.options);
-                  const optionsText = formatOptions(item.options, item.menu);
-                  
-                  return (
-                    <div key={itemKey} className="menu-item">
-                      <div className="menu-item-info">
-                        <div className="menu-item-name">{item.menu.name}</div>
-                        <div className="menu-item-options">{optionsText}</div>
-                        <div className="menu-item-price">
-                          {(item.totalPrice || 0).toLocaleString()}원
-                        </div>
-                      </div>
-                      <div className="menu-item-controls">
-                        <div className="quantity-controls">
-                          <button
-                            className="quantity-btn"
-                            onClick={() => onQuantityChange(index, -1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            -
-                          </button>
-                          <span className="quantity">{item.quantity}</span>
-                          <button
-                            className="quantity-btn"
-                            onClick={() => onQuantityChange(index, 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          className="remove-btn"
-                          onClick={() => onRemoveMenu(index)}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {selectedMenus.map((item, index) => (
+                  <CartItem
+                    key={generateCartItemKey(item.menu?.id, item.options)}
+                    item={item}
+                    index={index}
+                    onRemove={onRemoveMenu}
+                    onQuantityChange={onQuantityChange}
+                  />
+                ))}
               </div>
             )}
           </div>

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import './TeamOrderCard.css';
 
-function TeamOrderCard({ teamName, orderItems, totalQuantity, totalAmount }) {
+const TeamOrderCard = memo(({ teamName, orderItems, totalQuantity, totalAmount }) => {
   return (
     <div className="team-order-card">
       <div className="team-header">
@@ -41,6 +41,21 @@ function TeamOrderCard({ teamName, orderItems, totalQuantity, totalAmount }) {
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // 커스텀 비교 함수
+  if (prevProps.teamName !== nextProps.teamName) return false;
+  if (prevProps.totalQuantity !== nextProps.totalQuantity) return false;
+  if (prevProps.totalAmount !== nextProps.totalAmount) return false;
+  if (prevProps.orderItems.length !== nextProps.orderItems.length) return false;
+  
+  // orderItems 배열 비교 (간단한 JSON 비교)
+  const prevItemsStr = JSON.stringify(prevProps.orderItems);
+  const nextItemsStr = JSON.stringify(nextProps.orderItems);
+  if (prevItemsStr !== nextItemsStr) return false;
+  
+  return true;
+});
+
+TeamOrderCard.displayName = 'TeamOrderCard';
 
 export default TeamOrderCard;

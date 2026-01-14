@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import MenuSelection from '../components/MenuSelection';
 import OrderSidebar from '../components/OrderSidebar';
 import OptionModal from '../components/OptionModal';
@@ -26,20 +26,20 @@ function OrderPage() {
     submitOrder
   } = useOrder();
 
-  const handleMenuSelect = (menu) => {
+  const handleMenuSelect = useCallback((menu) => {
     if (!menu) return;
     setSelectedMenu(menu);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleOptionConfirm = (menuItem) => {
+  const handleOptionConfirm = useCallback((menuItem) => {
     if (!menuItem || !menuItem.menu) return;
     addMenuToCart(menuItem);
     setIsModalOpen(false);
     setSelectedMenu(null);
-  };
+  }, [addMenuToCart]);
 
-  const handleRecommendationClick = (menu) => {
+  const handleRecommendationClick = useCallback((menu) => {
     if (!menu) return;
     
     const defaultOptions = getDefaultOptions(menu);
@@ -57,7 +57,12 @@ function OrderPage() {
     };
     
     addMenuToCart(menuItem);
-  };
+  }, [addMenuToCart]);
+
+  const handleModalClose = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedMenu(null);
+  }, []);
 
   return (
     <div className="order-page">
@@ -83,10 +88,7 @@ function OrderPage() {
         <OptionModal
           menu={selectedMenu}
           isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedMenu(null);
-          }}
+          onClose={handleModalClose}
           onConfirm={handleOptionConfirm}
         />
       )}

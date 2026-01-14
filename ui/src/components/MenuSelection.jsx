@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { menuAPI } from '../utils/api';
+import MenuCard from './MenuCard';
 import './MenuSelection.css';
 
 function MenuSelection({ onMenuSelect }) {
@@ -9,11 +10,7 @@ function MenuSelection({ onMenuSelect }) {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const categories = ['전체', '커피', '논커피', '디저트'];
 
-  useEffect(() => {
-    loadMenus();
-  }, []);
-
-  const loadMenus = async () => {
+  const loadMenus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -50,7 +47,11 @@ function MenuSelection({ onMenuSelect }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadMenus();
+  }, [loadMenus]);
 
   // 필터링 결과를 메모이제이션하여 성능 최적화
   const filteredMenus = useMemo(() => {
@@ -59,6 +60,11 @@ function MenuSelection({ onMenuSelect }) {
     }
     return menus.filter(menu => menu.category === selectedCategory);
   }, [menus, selectedCategory]);
+
+  // onMenuSelect를 안정적으로 전달하기 위한 래퍼
+  const handleMenuSelect = useCallback((menu) => {
+    onMenuSelect(menu);
+  }, [onMenuSelect]);
 
   return (
     <div className="menu-selection">
@@ -91,19 +97,11 @@ function MenuSelection({ onMenuSelect }) {
       ) : (
         <div className="menu-grid">
           {filteredMenus.map(menu => (
-            <div key={menu.id} className="menu-card">
-              <div className="menu-card-content">
-                <div className="menu-name">{menu.name}</div>
-                <div className="menu-category-tag">{menu.category}</div>
-                <div className="menu-price">{menu.base_price.toLocaleString()}원~</div>
-              </div>
-              <button
-                className="option-button"
-                onClick={() => onMenuSelect(menu)}
-              >
-                + 옵션 선택
-              </button>
-            </div>
+            <MenuCard
+              key={menu.id}
+              menu={menu}
+              onSelect={handleMenuSelect}
+            />
           ))}
         </div>
       )}

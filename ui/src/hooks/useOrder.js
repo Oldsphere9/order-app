@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { orderAPI } from '../utils/api';
 import { teams } from '../data/menuData';
 import { findExistingCartItem } from '../utils/cartUtils';
@@ -15,58 +15,76 @@ export const useOrder = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /**
+   * 메뉴 수량 변경 (함수형 업데이트 사용)
+   */
+  const updateQuantity = useCallback((index, change) => {
+    if (index < 0) return;
+    
+    setSelectedMenus(prevMenus => {
+      if (index >= prevMenus.length) return prevMenus;
+      
+      const updatedMenus = [...prevMenus];
+      const menu = updatedMenus[index];
+      const newQuantity = Math.max(1, menu.quantity + change);
+      
+      updatedMenus[index] = {
+        ...menu,
+        quantity: newQuantity,
+        totalPrice: menu.unitPrice * newQuantity
+      };
+      
+      return updatedMenus;
+    });
+  }, []);
+
+  /**
    * 장바구니에 메뉴 추가 (중복 체크 포함)
    */
-  const addMenuToCart = (menuItem) => {
+  const addMenuToCart = useCallback((menuItem) => {
     if (!menuItem || !menuItem.menu) return;
     
-    const existingItem = findExistingCartItem(
-      selectedMenus, 
-      menuItem.menu.id, 
-      menuItem.options
-    );
-    
-    if (existingItem) {
-      // 동일한 메뉴+옵션이 있으면 수량만 증가
-      const index = selectedMenus.indexOf(existingItem);
-      updateQuantity(index, 1);
-    } else {
+    setSelectedMenus(prevMenus => {
+      const existingItem = findExistingCartItem(
+        prevMenus, 
+        menuItem.menu.id, 
+        menuItem.options
+      );
+      
+      if (existingItem) {
+        // 동일한 메뉴+옵션이 있으면 수량만 증가
+        const index = prevMenus.indexOf(existingItem);
+        if (index >= 0) {
+          const updatedMenus = [...prevMenus];
+          const menu = updatedMenus[index];
+          updatedMenus[index] = {
+            ...menu,
+            quantity: menu.quantity + 1,
+            totalPrice: menu.unitPrice * (menu.quantity + 1)
+          };
+          return updatedMenus;
+        }
+      }
+      
       // 새로운 아이템 추가
-      setSelectedMenus([...selectedMenus, menuItem]);
-    }
-  };
+      return [...prevMenus, menuItem];
+    });
+  }, []);
 
   /**
    * 장바구니에서 메뉴 제거
    */
-  const removeMenu = (index) => {
-    if (index < 0 || index >= selectedMenus.length) return;
-    setSelectedMenus(selectedMenus.filter((_, i) => i !== index));
-  };
-
-  /**
-   * 메뉴 수량 변경
-   */
-  const updateQuantity = (index, change) => {
-    if (index < 0 || index >= selectedMenus.length) return;
-    
-    const updatedMenus = [...selectedMenus];
-    const menu = updatedMenus[index];
-    const newQuantity = Math.max(1, menu.quantity + change);
-    
-    updatedMenus[index] = {
-      ...menu,
-      quantity: newQuantity,
-      totalPrice: menu.unitPrice * newQuantity
-    };
-    
-    setSelectedMenus(updatedMenus);
-  };
+  const removeMenu = useCallback((index) => {
+    if (index < 0) return;
+    setSelectedMenus(prevMenus => {
+      if (index >= prevMenus.length) return prevMenus;
+      return prevMenus.filter((_, i) => i !== index);
+    });
+  }, []);
 
   /**
    * 주문 입력 검증
    */
-  const validateOrder = () => {
+  const validateOrder = useCallback(() => {
     if (!selectedTeam) {
       showToast('팀을 선택해주세요.', 'error');
       return false;
@@ -84,12 +102,12 @@ export const useOrder = () => {
       return false;
     }
     return true;
-  };
+  }, [selectedTeam, name, employeeId, selectedMenus.length]);
 
   /**
    * 주문 제출
    */
-  const submitOrder = async () => {
+  const submitOrder = useCallback(async () => {
     if (!validateOrder()) {
       return false;
     }
@@ -135,19 +153,22 @@ export const useOrder = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [validateOrder, isSubmitting, selectedTeam, name, employeeId, selectedMenus]);
 
   /**
    * 주문 폼 초기화
    */
-  const resetOrder = () => {
+  const resetOrder = useCallback(() => {
     setSelectedMenus([]);
     setSelectedTeam('');
     setName('');
     setEmployeeId('');
-  };
+  }, []);
 
-  const totalPrice = selectedMenus.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  // totalPrice를 useMemo로 최적화
+  const totalPrice = useMemo(() => {
+    return selectedMenus.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  }, [selectedMenus]);
 
   return {
     selectedMenus,
