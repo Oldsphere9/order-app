@@ -43,8 +43,8 @@ async function initDatabase() {
     
     // Members 테이블 스키마 업데이트 (employee_id UNIQUE 제약조건 변경)
     try {
-      // 기존 employee_id UNIQUE 제약조건 찾기
-      const constraintCheck = await client.query(`
+      // 기존 employee_id UNIQUE 제약조건 찾기 (모든 방법으로)
+      const constraintCheck1 = await client.query(`
         SELECT constraint_name 
         FROM information_schema.table_constraints 
         WHERE table_name = 'members' 
@@ -52,13 +52,63 @@ async function initDatabase() {
         AND constraint_name LIKE '%employee_id%'
       `);
       
+      const constraintCheck2 = await client.query(`
+        SELECT indexname 
+        FROM pg_indexes 
+        WHERE tablename = 'members' 
+        AND indexname LIKE '%employee_id%'
+        AND indexdef LIKE '%UNIQUE%'
+      `);
+      
+      const constraintCheck3 = await client.query(`
+        SELECT conname 
+        FROM pg_constraint 
+        WHERE conrelid = 'members'::regclass
+        AND contype = 'u'
+        AND conname LIKE '%employee_id%'
+      `);
+      
+      // 모든 제약조건 이름 수집
+      const allConstraints = new Set();
+      constraintCheck1.rows.forEach(row => allConstraints.add(row.constraint_name));
+      constraintCheck2.rows.forEach(row => allConstraints.add(row.indexname));
+      constraintCheck3.rows.forEach(row => allConstraints.add(row.conname));
+      
+      // 알려진 제약조건 이름도 포함 (PostgreSQL 자동 생성 이름)
+      const knownConstraintNames = [
+        'members_employee_id_key',
+        'members_employee_id_unique',
+        'idx_members_employee_id_unique'
+      ];
+      knownConstraintNames.forEach(name => allConstraints.add(name));
+      
       // 기존 employee_id UNIQUE 제약조건 제거
-      if (constraintCheck.rows.length > 0) {
-        for (const constraint of constraintCheck.rows) {
-          const constraintName = constraint.constraint_name;
-          await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+      if (allConstraints.size > 0) {
+        for (const constraintName of allConstraints) {
+          try {
+            await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+          } catch (error) {
+            try {
+              await client.query(`DROP INDEX IF EXISTS ${constraintName}`);
+            } catch (indexError) {
+              // 무시하고 계속 진행
+            }
+          }
         }
         console.log('✅ 기존 employee_id UNIQUE 제약조건 제거 완료');
+      } else {
+        // 그래도 알려진 제약조건 이름들을 시도
+        for (const constraintName of knownConstraintNames) {
+          try {
+            await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+          } catch (error) {
+            try {
+              await client.query(`DROP INDEX IF EXISTS ${constraintName}`);
+            } catch (indexError) {
+              // 무시
+            }
+          }
+        }
       }
       
       // (team, name, employee_id) 조합에 UNIQUE 제약조건 추가
