@@ -20,7 +20,7 @@ if (process.env.DATABASE_URL) {
       : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // 타임아웃 증가 (10초)
   };
 } else {
   // 로컬 개발 환경
