@@ -18,6 +18,7 @@ function StatusPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('team'); // 'team' or 'member'
+  const [canReset, setCanReset] = useState(false);
 
   // processOrders와 processMemberOrders를 useCallback으로 최적화
   const processOrders = useCallback((ordersData) => {
@@ -174,13 +175,15 @@ function StatusPage() {
   };
 
   const handleCloseOrders = async () => {
-    if (!window.confirm('주문을 마감하시겠습니까? 주문 정보는 저장되고 현재 주문 목록은 삭제됩니다.')) {
+    if (!window.confirm('주문을 마감하시겠습니까? 주문 정보는 저장되고 주문 현황은 유지됩니다.')) {
       return;
     }
     
     try {
       const response = await orderAPI.closeOrders();
       showToast(`주문이 마감되었습니다. (${response.closed_orders_count}건 저장됨)`, 'success');
+      // 주문 리셋 버튼 활성화
+      setCanReset(true);
       // 데이터 새로고침
       loadData();
     } catch (error) {
@@ -198,12 +201,19 @@ function StatusPage() {
     try {
       const response = await orderAPI.resetAllOrders();
       showToast(`모든 주문이 삭제되었습니다. (${response.deleted_orders_count}건 삭제됨)`, 'success');
+      // 주문 리셋 버튼 비활성화
+      setCanReset(false);
       // 데이터 새로고침
       loadData();
     } catch (error) {
       console.error('주문 리셋 실패:', error);
       const errorMessage = error.response?.data?.error || error.message || '주문 리셋에 실패했습니다.';
       showToast(errorMessage, 'error');
+      
+      // 주문 마감을 먼저 해야 한다는 에러인 경우
+      if (error.response?.data?.code === 'CLOSE_FIRST') {
+        setCanReset(false);
+      }
     }
   };
 
@@ -228,7 +238,8 @@ function StatusPage() {
             <button
               className="reset-orders-button"
               onClick={handleResetOrders}
-              disabled={loading || stats.totalQuantity === 0}
+              disabled={loading || !canReset}
+              title={!canReset ? '주문 마감을 먼저 진행해주세요.' : '모든 주문을 삭제합니다.'}
             >
               주문 리셋
             </button>

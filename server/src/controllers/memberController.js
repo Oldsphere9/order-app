@@ -35,8 +35,8 @@ export const getRecommendations = async (req, res, next) => {
     const hour = koreaTime.getHours();
     const timeSlot = memberMenuPreferenceModel.getTimeSlot(hour);
 
-    // 추천 메뉴 조회 (요일 및 시간대 패턴 기반)
-    const recommendations = await memberMenuPreferenceModel.getPreferencesByMemberId(
+    // 추천 메뉴 조회 (요일 및 시간대 패턴 기반, closed_orders 포함)
+    const recommendations = await memberMenuPreferenceModel.getPreferencesByMemberIdWithHistory(
       member.id,
       dayOfWeek,
       timeSlot,

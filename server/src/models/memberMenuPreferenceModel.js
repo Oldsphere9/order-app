@@ -87,5 +87,156 @@ export const upsertPreference = async (memberId, menuId, dayOfWeek, timeSlot, cl
   return result.rows[0];
 };
 
+// closed_orders에서 주문 패턴 분석하여 member_menu_preferences 업데이트
+export const updatePreferencesFromClosedOrders = async (client = pool) => {
+  // closed_orders에서 최근 주문 데이터 조회 (최근 30일)
+  const query = `
+    SELECT 
+      co.member_id,
+      co.menu_id,
+      co.quantity,
+      co.closed_at,
+      EXTRACT(DOW FROM co.closed_at) as day_of_week,
+      EXTRACT(HOUR FROM co.closed_at) as hour
+    FROM closed_orders co
+    WHERE co.closed_at >= NOW() - INTERVAL '30 days'
+    ORDER BY co.closed_at DESC
+  `;
+  
+  const result = await client.query(query);
+  
+  // 각 주문에 대해 선호도 업데이트
+  for (const row of result.rows) {
+    const dayOfWeek = parseInt(row.day_of_week);
+    const hour = parseInt(row.hour);
+    const timeSlot = getTimeSlot(hour);
+    
+    // 수량만큼 반복하여 선호도 업데이트
+    for (let i = 0; i < row.quantity; i++) {
+      await upsertPreference(row.member_id, row.menu_id, dayOfWeek, timeSlot, client);
+    }
+  }
+  
+  return result.rows.length;
+};
+
+// closed_orders와 member_menu_preferences를 통합하여 추천 메뉴 조회
+export const getPreferencesByMemberIdWithHistory = async (memberId, currentDayOfWeek = null, currentTimeSlot = null, limit = 1) => {
+  // member_menu_preferences 기반 추천
+  const preferences = await getPreferencesByMemberId(memberId, currentDayOfWeek, currentTimeSlot, limit);
+  
+  // closed_orders에서 최근 주문 패턴 분석
+  let closedOrdersQuery = `
+    SELECT 
+      co.menu_id,
+      COUNT(*) as order_count,
+      MAX(co.closed_at) as last_ordered_at,
+      SUM(co.quantity) as total_quantity
+    FROM closed_orders co
+    WHERE co.member_id = $1
+  `;
+  
+  const params = [memberId];
+  let paramIndex = 2;
+  
+  // 현재 요일과 시간대가 제공된 경우 해당 패턴 필터링
+  if (currentDayOfWeek !== null && currentTimeSlot !== null) {
+    // 시간대 범위 계산
+    let hourStart, hourEnd;
+    switch (currentTimeSlot) {
+      case 'morning': hourStart = 6; hourEnd = 11; break;
+      case 'lunch': hourStart = 11; hourEnd = 15; break;
+      case 'afternoon': hourStart = 15; hourEnd = 18; break;
+      case 'evening': hourStart = 18; hourEnd = 22; break;
+      default: hourStart = 22; hourEnd = 6;
+    }
+    
+    closedOrdersQuery += `
+      AND EXTRACT(DOW FROM co.closed_at) = $${paramIndex}
+    `;
+    params.push(currentDayOfWeek);
+    paramIndex++;
+    
+    if (hourStart < hourEnd) {
+      // 일반적인 시간대 (6시~22시)
+      closedOrdersQuery += `
+        AND EXTRACT(HOUR FROM co.closed_at) >= $${paramIndex}
+        AND EXTRACT(HOUR FROM co.closed_at) < $${paramIndex + 1}
+      `;
+      params.push(hourStart, hourEnd);
+      paramIndex += 2;
+    } else {
+      // 밤 시간대 (22시~6시)
+      closedOrdersQuery += `
+        AND (EXTRACT(HOUR FROM co.closed_at) >= $${paramIndex} OR EXTRACT(HOUR FROM co.closed_at) < $${paramIndex + 1})
+      `;
+      params.push(hourStart, hourEnd);
+      paramIndex += 2;
+    }
+  }
+  
+  closedOrdersQuery += `
+    GROUP BY co.menu_id
+    ORDER BY order_count DESC, last_ordered_at DESC
+    LIMIT $${paramIndex}
+  `;
+  params.push(limit);
+  
+  const closedOrdersResult = await pool.query(closedOrdersQuery, params);
+  
+  // 메뉴 정보 조회
+  if (closedOrdersResult.rows.length > 0) {
+    const menuIds = closedOrdersResult.rows.map(row => row.menu_id);
+    const menuQuery = `
+      SELECT id, name, description, category, base_price, sale_status
+      FROM menus
+      WHERE id = ANY($1) AND sale_status = 'active'
+    `;
+    const menuResult = await pool.query(menuQuery, [menuIds]);
+    
+    // 메뉴 정보와 주문 통계 결합
+    const closedOrdersRecommendations = closedOrdersResult.rows.map(coRow => {
+      const menu = menuResult.rows.find(m => m.id === coRow.menu_id);
+      if (!menu) return null;
+      
+      return {
+        id: menu.id,
+        name: menu.name,
+        description: menu.description,
+        category: menu.category,
+        base_price: menu.base_price,
+        sale_status: menu.sale_status,
+        order_count: parseInt(coRow.order_count),
+        last_ordered_at: coRow.last_ordered_at,
+        from_closed_orders: true
+      };
+    }).filter(Boolean);
+    
+    // preferences와 closed_orders 결과를 합치고 중복 제거
+    const allRecommendations = [...preferences, ...closedOrdersRecommendations];
+    const uniqueRecommendations = [];
+    const seenMenuIds = new Set();
+    
+    for (const rec of allRecommendations) {
+      if (!seenMenuIds.has(rec.id)) {
+        seenMenuIds.add(rec.id);
+        uniqueRecommendations.push(rec);
+      }
+    }
+    
+    // 정렬: order_count DESC, last_ordered_at DESC
+    uniqueRecommendations.sort((a, b) => {
+      if (b.order_count !== a.order_count) {
+        return b.order_count - a.order_count;
+      }
+      return new Date(b.last_ordered_at) - new Date(a.last_ordered_at);
+    });
+    
+    return uniqueRecommendations.slice(0, limit);
+  }
+  
+  return preferences;
+};
+
 // 시간대 구분 함수 export
 export { getTimeSlot };

@@ -303,7 +303,7 @@ export const deleteMemberOrders = async (req, res, next) => {
   }
 };
 
-// 주문 마감: 현재 주문을 closed_orders로 저장하고 orders에서 삭제
+// 주문 마감: 현재 주문을 closed_orders로 저장 (orders 테이블은 유지)
 export const closeOrders = async (req, res, next) => {
   let client;
   
@@ -325,17 +325,17 @@ export const closeOrders = async (req, res, next) => {
       });
     }
     
-    // 주문을 closed_orders로 복사
+    // 주문을 closed_orders로 복사 (orders 테이블은 그대로 유지)
     const closedOrders = await orderModel.closeOrders(client);
     
-    // orders 테이블의 모든 주문 삭제
-    await client.query('DELETE FROM orders');
-    
-    // 주문이 없는 멤버들도 삭제
-    await client.query(`
-      DELETE FROM members 
-      WHERE id NOT IN (SELECT DISTINCT member_id FROM orders)
-    `);
+    // closed_orders 데이터를 분석하여 member_menu_preferences 업데이트
+    try {
+      await memberMenuPreferenceModel.updatePreferencesFromClosedOrders(client);
+      console.log('✅ closed_orders 기반 선호도 업데이트 완료');
+    } catch (prefError) {
+      console.error('선호도 업데이트 중 오류:', prefError);
+      // 선호도 업데이트 실패해도 주문 마감은 계속 진행
+    }
     
     await client.query('COMMIT');
     
@@ -353,13 +353,32 @@ export const closeOrders = async (req, res, next) => {
   }
 };
 
-// 주문 리셋: 모든 주문 삭제
+// 주문 리셋: 주문 마감 후에만 작동, 모든 주문 삭제
 export const resetAllOrders = async (req, res, next) => {
   let client;
   
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    
+    // 주문 마감 여부 확인 (최근 1시간 이내에 마감 기록이 있어야 함)
+    const recentCloseCheck = await client.query(`
+      SELECT COUNT(*) as count 
+      FROM closed_orders 
+      WHERE closed_at >= NOW() - INTERVAL '1 hour'
+    `);
+    
+    const recentCloseCount = parseInt(recentCloseCheck.rows[0].count);
+    
+    if (recentCloseCount === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({
+        success: false,
+        error: '주문 마감을 먼저 진행해주세요.',
+        code: 'CLOSE_FIRST'
+      });
+    }
     
     // 모든 주문 삭제
     const result = await orderModel.resetAllOrders(client);
