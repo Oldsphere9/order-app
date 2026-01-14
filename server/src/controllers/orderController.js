@@ -87,12 +87,14 @@ export const createOrder = async (req, res, next) => {
     // Members 테이블에 저장/업데이트
     const member = await memberModel.findOrCreateMember({ team, name, employee_id }, client);
     
-    // 동일 인원의 기존 주문 삭제 (최신 주문으로 업데이트하기 위해)
+    // 동일 인원의 기존 주문 삭제 (중복 주문 방지 - 마지막 주문만 유지)
     const deleteResult = await client.query(
       'DELETE FROM orders WHERE member_id = $1 RETURNING id',
       [member.id]
     );
-    console.log(`[주문 생성] 기존 주문 ${deleteResult.rows.length}건 삭제됨 (멤버 ID: ${member.id})`);
+    if (deleteResult.rows.length > 0) {
+      console.log(`[주문 생성] 동일 인원 기존 주문 ${deleteResult.rows.length}건 삭제됨 (멤버 ID: ${member.id}, 이름: ${name}, 사원번호: ${employee_id})`);
+    }
     
     // Orders 테이블에 저장 및 선호도 업데이트
     const orderIds = [];
