@@ -126,6 +126,16 @@ function StatusPage() {
       
       // 주문 인원별 데이터 처리
       processMemberOrders(ordersData);
+      
+      // 최근 마감 기록 확인하여 canReset 상태 설정
+      try {
+        const canResetCheck = await orderAPI.canReset();
+        setCanReset(canResetCheck.can_reset || false);
+      } catch (resetCheckError) {
+        // 마감 기록 확인 실패해도 계속 진행
+        console.log('마감 기록 확인 실패:', resetCheckError);
+        setCanReset(false);
+      }
     } catch (err) {
       console.error('데이터 로딩 실패:', err);
       setError('데이터를 불러오는데 실패했습니다.');

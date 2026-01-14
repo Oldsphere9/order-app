@@ -120,6 +120,12 @@ export const orderAPI = {
     return response.data;
   },
   
+  // 주문 리셋 가능 여부 확인
+  canReset: async () => {
+    const response = await api.get('/orders/can-reset');
+    return response.data;
+  },
+  
   // 모든 주문 리셋
   resetAllOrders: async () => {
     const response = await api.delete('/orders/reset');

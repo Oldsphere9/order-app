@@ -15,22 +15,18 @@ export const getRecommendations = async (req, res, next) => {
       });
     }
 
-    // 멤버 조회
-    const member = await memberModel.getMemberByEmployeeId(employee_id);
-
-    if (!member) {
+    // 멤버 조회: 팀, 이름, 사원번호가 모두 일치하는 멤버 조회
+    const members = await memberModel.getMembers({ team, name, employee_id });
+    
+    if (!members || members.length === 0) {
       // 멤버가 없는 경우 빈 배열 반환
-      console.log(`[추천 메뉴] 멤버 없음 - 사원번호: ${employee_id}`);
+      console.log(`[추천 메뉴] 멤버 없음 - 팀: ${team}, 이름: ${name}, 사원번호: ${employee_id}`);
       return res.json([]);
     }
-
-    console.log(`[추천 메뉴] 멤버 조회 성공 - ID: ${member.id}, 팀: ${member.team}, 이름: ${member.name}`);
-
-    // 팀과 이름이 일치하는지 확인
-    if (member.team !== team || member.name !== name) {
-      console.log(`[추천 메뉴] 팀/이름 불일치 - 요청: ${team}/${name}, DB: ${member.team}/${member.name}`);
-      return res.json([]);
-    }
+    
+    // 첫 번째 멤버 사용 (팀, 이름, 사원번호가 모두 일치하는 멤버)
+    const member = members[0];
+    console.log(`[추천 메뉴] 멤버 조회 성공 - ID: ${member.id}, 팀: ${member.team}, 이름: ${member.name}, 사원번호: ${member.employee_id}`);
 
     // 현재 시간 기준으로 요일과 시간대 계산 (한국 시간대)
     const now = new Date();

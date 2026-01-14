@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, getOrders, getOrderStats, deleteOrder, deleteMemberOrders, closeOrders, resetAllOrders } from '../controllers/orderController.js';
+import { createOrder, getOrders, getOrderStats, deleteOrder, deleteMemberOrders, closeOrders, resetAllOrders, canReset } from '../controllers/orderController.js';
 
 const router = express.Router();
 
@@ -14,6 +14,9 @@ router.get('/stats', getOrderStats);
 
 // POST /api/orders/close - 주문 마감
 router.post('/close', closeOrders);
+
+// GET /api/orders/can-reset - 주문 리셋 가능 여부 확인
+router.get('/can-reset', canReset);
 
 // DELETE /api/orders/reset - 모든 주문 리셋
 router.delete('/reset', resetAllOrders);

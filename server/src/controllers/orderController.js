@@ -389,6 +389,28 @@ export const closeOrders = async (req, res, next) => {
   }
 };
 
+// 주문 리셋 가능 여부 확인
+export const canReset = async (req, res, next) => {
+  try {
+    // 최근 1시간 이내에 마감 기록이 있는지 확인
+    const recentCloseCheck = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM closed_orders 
+      WHERE closed_at >= NOW() - INTERVAL '1 hour'
+    `);
+    
+    const recentCloseCount = parseInt(recentCloseCheck.rows[0].count);
+    
+    res.json({
+      success: true,
+      can_reset: recentCloseCount > 0
+    });
+  } catch (error) {
+    console.error('[주문 리셋 가능 여부 확인] 에러:', error);
+    next(error);
+  }
+};
+
 // 주문 리셋: 주문 마감 후에만 작동, 모든 주문 삭제
 export const resetAllOrders = async (req, res, next) => {
   let client;
