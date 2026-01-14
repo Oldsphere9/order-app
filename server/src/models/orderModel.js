@@ -96,6 +96,7 @@ export const closeOrders = async (client = pool) => {
       options,
       unit_price,
       total_price,
+      closed_at,
       created_at
     )
     SELECT 
@@ -111,14 +112,19 @@ export const closeOrders = async (client = pool) => {
       o.options,
       o.unit_price,
       o.total_price,
+      NOW(),
       o.created_at
     FROM orders o
     INNER JOIN members m ON o.member_id = m.id
     INNER JOIN menus menu ON o.menu_id = menu.id
-    RETURNING id
+    RETURNING id, closed_at
   `;
   
   const result = await client.query(query);
+  console.log(`[주문 마감] ${result.rows.length}건의 주문이 closed_orders에 저장됨`);
+  if (result.rows.length > 0) {
+    console.log(`[주문 마감] 첫 번째 마감 시간: ${result.rows[0].closed_at}`);
+  }
   return result.rows;
 };
 

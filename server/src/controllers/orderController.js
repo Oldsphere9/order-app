@@ -421,14 +421,24 @@ export const resetAllOrders = async (req, res, next) => {
     
     // 주문 마감 여부 확인 (최근 1시간 이내에 마감 기록이 있어야 함)
     const recentCloseCheck = await client.query(`
-      SELECT COUNT(*) as count 
+      SELECT COUNT(*) as count, MAX(closed_at) as latest_closed_at
       FROM closed_orders 
       WHERE closed_at >= NOW() - INTERVAL '1 hour'
     `);
     
     const recentCloseCount = parseInt(recentCloseCheck.rows[0].count);
+    const latestClosedAt = recentCloseCheck.rows[0].latest_closed_at;
+    
+    console.log(`[주문 리셋] 최근 마감 기록 확인: ${recentCloseCount}건, 최신 마감 시간: ${latestClosedAt}`);
     
     if (recentCloseCount === 0) {
+      // 전체 마감 기록 확인 (디버깅용)
+      const allCloseCheck = await client.query(`
+        SELECT COUNT(*) as count, MAX(closed_at) as latest_closed_at
+        FROM closed_orders
+      `);
+      console.log(`[주문 리셋] 전체 마감 기록: ${allCloseCheck.rows[0].count}건, 최신 마감 시간: ${allCloseCheck.rows[0].latest_closed_at}`);
+      
       await client.query('ROLLBACK');
       client.release();
       return res.status(400).json({
