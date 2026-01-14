@@ -87,13 +87,38 @@ export const createOrder = async (req, res, next) => {
     // Members 테이블에 저장/업데이트
     const member = await memberModel.findOrCreateMember({ team, name, employee_id }, client);
     
-    // 동일 인원의 기존 주문 삭제 (중복 주문 방지 - 마지막 주문만 유지)
+    if (!member || !member.id) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(500).json({
+        success: false,
+        error: '멤버 정보를 가져오는데 실패했습니다.',
+        code: 'MEMBER_ERROR'
+      });
+    }
+    
+    // 동일 인원의 기존 주문만 삭제 (중복 주문 방지 - 마지막 주문만 유지)
+    // member_id로 정확히 필터링하여 해당 멤버의 주문만 삭제
     const deleteResult = await client.query(
-      'DELETE FROM orders WHERE member_id = $1 RETURNING id',
+      'DELETE FROM orders WHERE member_id = $1 RETURNING id, member_id',
       [member.id]
     );
+    
     if (deleteResult.rows.length > 0) {
-      console.log(`[주문 생성] 동일 인원 기존 주문 ${deleteResult.rows.length}건 삭제됨 (멤버 ID: ${member.id}, 이름: ${name}, 사원번호: ${employee_id})`);
+      // 삭제된 주문이 모두 해당 멤버의 것인지 검증
+      const deletedMemberIds = [...new Set(deleteResult.rows.map(row => row.member_id))];
+      if (deletedMemberIds.length === 1 && deletedMemberIds[0] === member.id) {
+        console.log(`[주문 생성] 동일 인원 기존 주문 ${deleteResult.rows.length}건 삭제됨 (멤버 ID: ${member.id}, 이름: ${name}, 사원번호: ${employee_id})`);
+      } else {
+        console.error(`[주문 생성 오류] 잘못된 멤버의 주문이 삭제됨! 삭제된 멤버 IDs: ${deletedMemberIds.join(', ')}, 현재 멤버 ID: ${member.id}`);
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(500).json({
+          success: false,
+          error: '주문 삭제 중 오류가 발생했습니다.',
+          code: 'DELETE_ORDER_ERROR'
+        });
+      }
     }
     
     // Orders 테이블에 저장 및 선호도 업데이트
