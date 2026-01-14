@@ -109,4 +109,34 @@ async function testConnection() {
   }
 }
 
-export { initDatabase, testConnection };
+// time_pattern 컬럼만 확인하고 추가하는 경량 마이그레이션 함수
+async function ensureTimePatternColumn() {
+  const client = await pool.connect();
+  
+  try {
+    // time_pattern 컬럼이 없는 경우 추가
+    await client.query(`
+      ALTER TABLE member_menu_preferences 
+      ADD COLUMN IF NOT EXISTS time_pattern JSONB DEFAULT '{}'::jsonb
+    `);
+    
+    // 인덱스 생성
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_time_pattern 
+      ON member_menu_preferences USING GIN (time_pattern)
+    `);
+    
+    console.log('✅ time_pattern 컬럼 확인 완료');
+  } catch (error) {
+    // 테이블이 없으면 무시 (나중에 initDatabase에서 생성됨)
+    if (error.code === '42P01') {
+      console.log('member_menu_preferences 테이블이 아직 없습니다. 나중에 생성됩니다.');
+    } else {
+      console.error('time_pattern 컬럼 확인 중 오류:', error.message);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+export { initDatabase, testConnection, ensureTimePatternColumn };
