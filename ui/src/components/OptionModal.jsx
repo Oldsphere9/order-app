@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { shouldHideTemperature, isDessertMenu, getDefaultOptions } from '../utils/menuUtils';
 import { calculateOptionPrice } from '../utils/optionPricing';
 import './OptionModal.css';
@@ -35,7 +35,24 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
     return calculateOptionPrice(basePrice, options, isDessert);
   }, [menu.base_price, menu.basePrice, options, isDessert]);
 
-  const handleConfirm = () => {
+  // 옵션 변경 핸들러들을 useCallback으로 메모이제이션
+  const handleTemperatureChange = useCallback((temperature) => {
+    setOptions(prev => ({ ...prev, temperature }));
+  }, []);
+
+  const handleSizeChange = useCallback((size) => {
+    setOptions(prev => ({ ...prev, size }));
+  }, []);
+
+  const handleShotChange = useCallback((shot) => {
+    setOptions(prev => ({ ...prev, shot }));
+  }, []);
+
+  const handleExtraChange = useCallback((extra) => {
+    setOptions(prev => ({ ...prev, extra }));
+  }, []);
+
+  const handleConfirm = useCallback(() => {
     onConfirm({
       menu,
       options,
@@ -44,7 +61,7 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
       totalPrice: calculatedPrice
     });
     onClose();
-  };
+  }, [menu, options, calculatedPrice, onConfirm, onClose]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -65,13 +82,13 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
                   <div className="option-buttons">
                     <button
                       className={`option-btn ${options.temperature === 'HOT' ? 'active' : ''}`}
-                      onClick={() => setOptions({...options, temperature: 'HOT'})}
+                      onClick={() => handleTemperatureChange('HOT')}
                     >
                       HOT
                     </button>
                     <button
                       className={`option-btn ${options.temperature === 'ICE' ? 'active' : ''}`}
-                      onClick={() => setOptions({...options, temperature: 'ICE'})}
+                      onClick={() => handleTemperatureChange('ICE')}
                     >
                       ICE
                     </button>
@@ -84,19 +101,19 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
                 <div className="option-buttons">
                   <button
                     className={`option-btn ${options.size === 'Small' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, size: 'Small'})}
+                    onClick={() => handleSizeChange('Small')}
                   >
                     Small (-500원)
                   </button>
                   <button
                     className={`option-btn ${options.size === 'Regular' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, size: 'Regular'})}
+                    onClick={() => handleSizeChange('Regular')}
                   >
                     Regular
                   </button>
                   <button
                     className={`option-btn ${options.size === 'Large' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, size: 'Large'})}
+                    onClick={() => handleSizeChange('Large')}
                   >
                     Large (+500원)
                   </button>
@@ -109,19 +126,19 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
                   <div className="option-buttons">
                     <button
                       className={`option-btn ${options.shot === '기본' ? 'active' : ''}`}
-                      onClick={() => setOptions({...options, shot: '기본'})}
+                      onClick={() => handleShotChange('기본')}
                     >
                       기본
                     </button>
                     <button
                       className={`option-btn ${options.shot === '+1샷' ? 'active' : ''}`}
-                      onClick={() => setOptions({...options, shot: '+1샷'})}
+                      onClick={() => handleShotChange('+1샷')}
                     >
                       +1샷 (+500원)
                     </button>
                     <button
                       className={`option-btn ${options.shot === '+2샷' ? 'active' : ''}`}
-                      onClick={() => setOptions({...options, shot: '+2샷'})}
+                      onClick={() => handleShotChange('+2샷')}
                     >
                       +2샷 (+1,000원)
                     </button>
@@ -134,19 +151,19 @@ function OptionModal({ menu, isOpen, onClose, onConfirm }) {
                 <div className="option-buttons">
                   <button
                     className={`option-btn ${options.extra === '' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, extra: ''})}
+                    onClick={() => handleExtraChange('')}
                   >
                     없음
                   </button>
                   <button
                     className={`option-btn ${options.extra === '휘핑크림 추가' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, extra: '휘핑크림 추가'})}
+                    onClick={() => handleExtraChange('휘핑크림 추가')}
                   >
                     휘핑크림 추가 (+500원)
                   </button>
                   <button
                     className={`option-btn ${options.extra === '시럽 추가' ? 'active' : ''}`}
-                    onClick={() => setOptions({...options, extra: '시럽 추가'})}
+                    onClick={() => handleExtraChange('시럽 추가')}
                   >
                     시럽 추가 (+500원)
                   </button>

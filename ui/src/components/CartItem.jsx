@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { formatOptions } from '../utils/optionUtils';
-import { generateCartItemKey } from '../utils/cartUtils';
 import './CartItem.css';
 
 const CartItem = memo(({ item, index, onRemove, onQuantityChange }) => {
@@ -10,11 +9,6 @@ const CartItem = memo(({ item, index, onRemove, onQuantityChange }) => {
   const optionsText = useMemo(() => {
     return formatOptions(item.options, item.menu);
   }, [item.options, item.menu]);
-
-  // 아이템 키를 메모이제이션
-  const itemKey = useMemo(() => {
-    return generateCartItemKey(item.menu.id, item.options);
-  }, [item.menu.id, item.options]);
 
   const handleRemove = useCallback(() => {
     onRemove(index);
@@ -31,7 +25,7 @@ const CartItem = memo(({ item, index, onRemove, onQuantityChange }) => {
   }, [index, onQuantityChange]);
 
   return (
-    <div key={itemKey} className="menu-item">
+    <div className="menu-item">
       <div className="menu-item-info">
         <div className="menu-item-name">{item.menu.name}</div>
         <div className="menu-item-options">{optionsText}</div>

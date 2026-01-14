@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { menuAPI } from '../utils/api';
+import { showToast } from '../utils/toast';
 import './MenuManagementPage.css';
 
 function MenuManagementPage() {
@@ -10,11 +11,7 @@ function MenuManagementPage() {
   const [updating, setUpdating] = useState({});
   const [activeTab, setActiveTab] = useState('season_off'); // 'active' or 'season_off'
 
-  useEffect(() => {
-    loadMenus();
-  }, [activeTab]);
-
-  const loadMenus = async () => {
+  const loadMenus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -32,26 +29,30 @@ function MenuManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const handleStatusChange = async (menuId, newStatus) => {
+  useEffect(() => {
+    loadMenus();
+  }, [loadMenus]);
+
+  const handleStatusChange = useCallback(async (menuId, newStatus) => {
     try {
-      setUpdating({ ...updating, [menuId]: true });
+      setUpdating(prev => ({ ...prev, [menuId]: true }));
       await menuAPI.updateMenu(menuId, { sale_status: newStatus });
       
       // 목록 새로고침
       await loadMenus();
       
       const statusText = newStatus === 'active' ? '활성화' : 'Season Off';
-      alert(`메뉴가 ${statusText} 상태로 변경되었습니다.`);
+      showToast(`메뉴가 ${statusText} 상태로 변경되었습니다.`, 'success');
     } catch (err) {
       console.error('메뉴 상태 변경 실패:', err);
       const errorMessage = err.response?.data?.error || err.message || '메뉴 상태 변경에 실패했습니다.';
-      alert(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
-      setUpdating({ ...updating, [menuId]: false });
+      setUpdating(prev => ({ ...prev, [menuId]: false }));
     }
-  };
+  }, [loadMenus]);
 
   const currentMenus = activeTab === 'season_off' ? seasonOffMenus : activeMenus;
 

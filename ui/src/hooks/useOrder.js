@@ -97,12 +97,19 @@ export const useOrder = () => {
       showToast('사원번호를 입력해주세요.', 'error');
       return false;
     }
-    if (selectedMenus.length === 0) {
-      showToast('메뉴를 선택해주세요.', 'error');
+    
+    // 유효한 메뉴가 있는지 확인
+    const validMenus = selectedMenus.filter(item => 
+      item && item.menu && item.menu.id && item.quantity > 0
+    );
+    
+    if (validMenus.length === 0) {
+      showToast('유효한 메뉴를 선택해주세요.', 'error');
       return false;
     }
+    
     return true;
-  }, [selectedTeam, name, employeeId, selectedMenus.length]);
+  }, [selectedTeam, name, employeeId, selectedMenus]);
 
   /**
    * 주문 제출
