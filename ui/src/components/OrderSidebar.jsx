@@ -98,7 +98,10 @@ function OrderSidebar({
                     </div>
                     <button
                       className="recommendation-add-btn"
-                      onClick={() => onRecommendationClick && onRecommendationClick(recommendations[0])}
+                      onClick={() => {
+                        console.log('[추천 메뉴] 클릭:', recommendations[0]);
+                        onRecommendationClick && onRecommendationClick(recommendations[0]);
+                      }}
                     >
                       추가하기
                     </button>
@@ -106,7 +109,12 @@ function OrderSidebar({
                 )}
               </div>
             ) : (
-              <div className="recommendations-empty">주문 이력이 없습니다.</div>
+              <div className="recommendations-empty">
+                주문 이력이 없습니다.
+                <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>
+                  (팀: {selectedTeam}, 이름: {name}, 사원번호: {employeeId})
+                </div>
+              </div>
             )}
           </div>
         )}

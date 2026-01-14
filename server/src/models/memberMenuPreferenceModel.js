@@ -122,19 +122,21 @@ export const updatePreferencesFromClosedOrders = async (client = pool) => {
 
 // closed_orders와 member_menu_preferences를 통합하여 추천 메뉴 조회
 export const getPreferencesByMemberIdWithHistory = async (memberId, currentDayOfWeek = null, currentTimeSlot = null, limit = 1) => {
-  // member_menu_preferences 기반 추천
-  const preferences = await getPreferencesByMemberId(memberId, currentDayOfWeek, currentTimeSlot, limit);
-  
-  // closed_orders에서 최근 주문 패턴 분석
-  let closedOrdersQuery = `
-    SELECT 
-      co.menu_id,
-      COUNT(*) as order_count,
-      MAX(co.closed_at) as last_ordered_at,
-      SUM(co.quantity) as total_quantity
-    FROM closed_orders co
-    WHERE co.member_id = $1
-  `;
+  try {
+    // member_menu_preferences 기반 추천
+    const preferences = await getPreferencesByMemberId(memberId, currentDayOfWeek, currentTimeSlot, limit);
+    console.log(`[추천 메뉴] member_menu_preferences에서 ${preferences.length}개 조회됨`);
+    
+    // closed_orders에서 최근 주문 패턴 분석
+    let closedOrdersQuery = `
+      SELECT 
+        co.menu_id,
+        COUNT(*) as order_count,
+        MAX(co.closed_at) as last_ordered_at,
+        SUM(co.quantity) as total_quantity
+      FROM closed_orders co
+      WHERE co.member_id = $1
+    `;
   
   const params = [memberId];
   let paramIndex = 2;
@@ -232,10 +234,17 @@ export const getPreferencesByMemberIdWithHistory = async (memberId, currentDayOf
       return new Date(b.last_ordered_at) - new Date(a.last_ordered_at);
     });
     
+    console.log(`[추천 메뉴] 통합 결과: ${uniqueRecommendations.length}개`);
     return uniqueRecommendations.slice(0, limit);
   }
   
+  console.log(`[추천 메뉴] closed_orders 결과 없음, preferences 반환: ${preferences.length}개`);
   return preferences;
+  } catch (error) {
+    console.error('[추천 메뉴] getPreferencesByMemberIdWithHistory 에러:', error);
+    // 에러 발생 시 빈 배열 반환
+    return [];
+  }
 };
 
 // 시간대 구분 함수 export

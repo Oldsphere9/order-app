@@ -26,15 +26,27 @@ export const useRecommendations = (selectedTeam, name, employeeId) => {
 
       try {
         setLoading(true);
+        console.log('[추천 메뉴] API 호출 시작:', { team: teamName, name: name.trim(), employee_id: employeeId.trim() });
         const data = await memberAPI.getRecommendations({
           team: teamName,
           name: name.trim(),
           employee_id: employeeId.trim(),
           limit: 1
         });
+        console.log('[추천 메뉴] API 응답:', data);
         setRecommendations(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
+          console.log('[추천 메뉴] 추천 메뉴 발견:', data[0].name);
+        } else {
+          console.log('[추천 메뉴] 추천 메뉴 없음');
+        }
       } catch (error) {
-        console.error('추천 메뉴 조회 실패:', error);
+        console.error('[추천 메뉴] 조회 실패:', error);
+        console.error('[추천 메뉴] 에러 상세:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
         setRecommendations([]);
       } finally {
         setLoading(false);

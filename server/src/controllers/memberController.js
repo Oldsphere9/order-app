@@ -43,8 +43,11 @@ export const getRecommendations = async (req, res, next) => {
       parseInt(limit) || 1
     );
 
+    console.log(`[추천 메뉴] 멤버 ID: ${member.id}, 요일: ${dayOfWeek}, 시간대: ${timeSlot}, 추천 개수: ${recommendations.length}`);
+    
     res.json(recommendations);
   } catch (error) {
+    console.error('[추천 메뉴] 에러 발생:', error);
     next(error);
   }
 };
