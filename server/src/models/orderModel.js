@@ -103,3 +103,61 @@ export const getOrderStats = async () => {
   const result = await pool.query(query);
   return result.rows[0];
 };
+
+// 주문 마감: 현재 주문을 closed_orders로 이동
+export const closeOrders = async (client = pool) => {
+  const query = `
+    INSERT INTO closed_orders (
+      original_order_id,
+      member_id,
+      member_team,
+      member_name,
+      member_employee_id,
+      menu_id,
+      menu_name,
+      menu_category,
+      quantity,
+      options,
+      unit_price,
+      total_price,
+      created_at
+    )
+    SELECT 
+      o.id,
+      m.id,
+      m.team,
+      m.name,
+      m.employee_id,
+      menu.id,
+      menu.name,
+      menu.category,
+      o.quantity,
+      o.options,
+      o.unit_price,
+      o.total_price,
+      o.created_at
+    FROM orders o
+    INNER JOIN members m ON o.member_id = m.id
+    INNER JOIN menus menu ON o.menu_id = menu.id
+    RETURNING id
+  `;
+  
+  const result = await client.query(query);
+  return result.rows;
+};
+
+// 모든 주문 삭제 (주문 리셋)
+export const resetAllOrders = async (client = pool) => {
+  // 모든 주문 삭제
+  const deleteOrdersResult = await client.query('DELETE FROM orders RETURNING id');
+  
+  // 주문이 없는 멤버들도 삭제
+  await client.query(`
+    DELETE FROM members 
+    WHERE id NOT IN (SELECT DISTINCT member_id FROM orders)
+  `);
+  
+  return {
+    deleted_orders_count: deleteOrdersResult.rows.length
+  };
+};

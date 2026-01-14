@@ -302,3 +302,80 @@ export const deleteMemberOrders = async (req, res, next) => {
     next(error);
   }
 };
+
+// 주문 마감: 현재 주문을 closed_orders로 저장하고 orders에서 삭제
+export const closeOrders = async (req, res, next) => {
+  let client;
+  
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    // 현재 주문이 있는지 확인
+    const orderCheck = await client.query('SELECT COUNT(*) as count FROM orders');
+    const orderCount = parseInt(orderCheck.rows[0].count);
+    
+    if (orderCount === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({
+        success: false,
+        error: '마감할 주문이 없습니다.',
+        code: 'NO_ORDERS'
+      });
+    }
+    
+    // 주문을 closed_orders로 복사
+    const closedOrders = await orderModel.closeOrders(client);
+    
+    // orders 테이블의 모든 주문 삭제
+    await client.query('DELETE FROM orders');
+    
+    // 주문이 없는 멤버들도 삭제
+    await client.query(`
+      DELETE FROM members 
+      WHERE id NOT IN (SELECT DISTINCT member_id FROM orders)
+    `);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: '주문이 마감되었습니다.',
+      closed_orders_count: closedOrders.length
+    });
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+    next(error);
+  }
+};
+
+// 주문 리셋: 모든 주문 삭제
+export const resetAllOrders = async (req, res, next) => {
+  let client;
+  
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    // 모든 주문 삭제
+    const result = await orderModel.resetAllOrders(client);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: '모든 주문이 삭제되었습니다.',
+      deleted_orders_count: result.deleted_orders_count
+    });
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+    next(error);
+  }
+};

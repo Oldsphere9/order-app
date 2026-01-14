@@ -173,6 +173,40 @@ function StatusPage() {
     }
   };
 
+  const handleCloseOrders = async () => {
+    if (!window.confirm('주문을 마감하시겠습니까? 주문 정보는 저장되고 현재 주문 목록은 삭제됩니다.')) {
+      return;
+    }
+    
+    try {
+      const response = await orderAPI.closeOrders();
+      showToast(`주문이 마감되었습니다. (${response.closed_orders_count}건 저장됨)`, 'success');
+      // 데이터 새로고침
+      loadData();
+    } catch (error) {
+      console.error('주문 마감 실패:', error);
+      const errorMessage = error.response?.data?.error || error.message || '주문 마감에 실패했습니다.';
+      showToast(errorMessage, 'error');
+    }
+  };
+
+  const handleResetOrders = async () => {
+    if (!window.confirm('모든 주문을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+    
+    try {
+      const response = await orderAPI.resetAllOrders();
+      showToast(`모든 주문이 삭제되었습니다. (${response.deleted_orders_count}건 삭제됨)`, 'success');
+      // 데이터 새로고침
+      loadData();
+    } catch (error) {
+      console.error('주문 리셋 실패:', error);
+      const errorMessage = error.response?.data?.error || error.message || '주문 리셋에 실패했습니다.';
+      showToast(errorMessage, 'error');
+    }
+  };
+
   return (
     <div className="status-page">
       <div className="status-content">
@@ -183,6 +217,22 @@ function StatusPage() {
         />
 
         <div className="orders-section">
+          <div className="order-actions">
+            <button
+              className="close-orders-button"
+              onClick={handleCloseOrders}
+              disabled={loading || stats.totalQuantity === 0}
+            >
+              주문 마감
+            </button>
+            <button
+              className="reset-orders-button"
+              onClick={handleResetOrders}
+              disabled={loading || stats.totalQuantity === 0}
+            >
+              주문 리셋
+            </button>
+          </div>
           <div className="section-tabs">
             <button
               className={`section-tab ${activeTab === 'team' ? 'active' : ''}`}

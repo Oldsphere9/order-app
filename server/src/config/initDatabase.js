@@ -41,6 +41,43 @@ async function initDatabase() {
       console.log('time_pattern 컬럼 마이그레이션 스킵:', migrationError.message);
     }
     
+    // closed_orders 테이블 생성 (주문 마감 기능)
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS closed_orders (
+          id SERIAL PRIMARY KEY,
+          original_order_id INTEGER,
+          member_id INTEGER NOT NULL,
+          member_team VARCHAR(50) NOT NULL,
+          member_name VARCHAR(50) NOT NULL,
+          member_employee_id VARCHAR(50) NOT NULL,
+          menu_id INTEGER NOT NULL,
+          menu_name VARCHAR(100) NOT NULL,
+          menu_category VARCHAR(20) NOT NULL,
+          quantity INTEGER NOT NULL CHECK (quantity > 0),
+          options JSONB NOT NULL DEFAULT '{}',
+          unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+          total_price INTEGER NOT NULL CHECK (total_price >= 0),
+          closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP
+        )
+      `);
+      console.log('✅ closed_orders 테이블 생성 완료');
+      
+      // 인덱스 생성
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_closed_orders_closed_at 
+        ON closed_orders(closed_at DESC)
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_closed_orders_member_id 
+        ON closed_orders(member_id)
+      `);
+      console.log('✅ closed_orders 인덱스 생성 완료');
+    } catch (migrationError) {
+      console.log('closed_orders 테이블 생성 스킵:', migrationError.message);
+    }
+    
     // 기본 데이터 삽입 (선택사항)
     await insertInitialData(client);
     
@@ -109,7 +146,7 @@ async function testConnection() {
   }
 }
 
-// time_pattern 컬럼만 확인하고 추가하는 경량 마이그레이션 함수
+// time_pattern 컬럼과 closed_orders 테이블 확인 및 추가하는 경량 마이그레이션 함수
 async function ensureTimePatternColumn() {
   const client = await pool.connect();
   
@@ -127,12 +164,45 @@ async function ensureTimePatternColumn() {
     `);
     
     console.log('✅ time_pattern 컬럼 확인 완료');
+    
+    // closed_orders 테이블 생성
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS closed_orders (
+        id SERIAL PRIMARY KEY,
+        original_order_id INTEGER,
+        member_id INTEGER NOT NULL,
+        member_team VARCHAR(50) NOT NULL,
+        member_name VARCHAR(50) NOT NULL,
+        member_employee_id VARCHAR(50) NOT NULL,
+        menu_id INTEGER NOT NULL,
+        menu_name VARCHAR(100) NOT NULL,
+        menu_category VARCHAR(20) NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        options JSONB NOT NULL DEFAULT '{}',
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        total_price INTEGER NOT NULL CHECK (total_price >= 0),
+        closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP
+      )
+    `);
+    
+    // 인덱스 생성
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_closed_orders_closed_at 
+      ON closed_orders(closed_at DESC)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_closed_orders_member_id 
+      ON closed_orders(member_id)
+    `);
+    
+    console.log('✅ closed_orders 테이블 확인 완료');
   } catch (error) {
     // 테이블이 없으면 무시 (나중에 initDatabase에서 생성됨)
     if (error.code === '42P01') {
-      console.log('member_menu_preferences 테이블이 아직 없습니다. 나중에 생성됩니다.');
+      console.log('테이블이 아직 없습니다. 나중에 생성됩니다.');
     } else {
-      console.error('time_pattern 컬럼 확인 중 오류:', error.message);
+      console.error('마이그레이션 확인 중 오류:', error.message);
     }
   } finally {
     client.release();

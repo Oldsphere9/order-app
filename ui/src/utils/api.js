@@ -113,6 +113,18 @@ export const orderAPI = {
     const response = await api.delete(`/orders/member/${memberId}`);
     return response.data;
   },
+  
+  // 주문 마감
+  closeOrders: async () => {
+    const response = await api.post('/orders/close');
+    return response.data;
+  },
+  
+  // 모든 주문 리셋
+  resetAllOrders: async () => {
+    const response = await api.delete('/orders/reset');
+    return response.data;
+  },
 };
 
 export const memberAPI = {

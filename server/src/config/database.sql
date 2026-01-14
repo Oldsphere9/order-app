@@ -59,6 +59,25 @@ CREATE TABLE IF NOT EXISTS member_menu_preferences (
     UNIQUE(member_id, menu_id)
 );
 
+-- Closed Orders 테이블 생성 (주문 마감 시 저장)
+CREATE TABLE IF NOT EXISTS closed_orders (
+    id SERIAL PRIMARY KEY,
+    original_order_id INTEGER,
+    member_id INTEGER NOT NULL,
+    member_team VARCHAR(50) NOT NULL,
+    member_name VARCHAR(50) NOT NULL,
+    member_employee_id VARCHAR(50) NOT NULL,
+    menu_id INTEGER NOT NULL,
+    menu_name VARCHAR(100) NOT NULL,
+    menu_category VARCHAR(20) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    options JSONB NOT NULL DEFAULT '{}',
+    unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+    total_price INTEGER NOT NULL CHECK (total_price >= 0),
+    closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP
+);
+
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_menus_category ON menus(category);
 CREATE INDEX IF NOT EXISTS idx_menus_sale_status ON menus(sale_status);
@@ -72,6 +91,8 @@ CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_member_id ON member_menu_
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_menu_id ON member_menu_preferences(menu_id);
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_order_count ON member_menu_preferences(order_count DESC);
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_time_pattern ON member_menu_preferences USING GIN (time_pattern);
+CREATE INDEX IF NOT EXISTS idx_closed_orders_closed_at ON closed_orders(closed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_closed_orders_member_id ON closed_orders(member_id);
 
 -- updated_at 자동 업데이트를 위한 트리거 함수
 CREATE OR REPLACE FUNCTION update_updated_at_column()
