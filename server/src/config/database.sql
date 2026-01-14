@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS member_menu_preferences (
     menu_id INTEGER NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
     order_count INTEGER NOT NULL DEFAULT 0 CHECK (order_count >= 0),
     last_ordered_at TIMESTAMP,
+    time_pattern JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(member_id, menu_id)
@@ -70,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_member_id ON member_menu_preferences(member_id);
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_menu_id ON member_menu_preferences(menu_id);
 CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_order_count ON member_menu_preferences(order_count DESC);
+CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_time_pattern ON member_menu_preferences USING GIN (time_pattern);
 
 -- updated_at 자동 업데이트를 위한 트리거 함수
 CREATE OR REPLACE FUNCTION update_updated_at_column()

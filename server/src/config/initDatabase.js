@@ -22,6 +22,25 @@ async function initDatabase() {
     
     console.log('✅ 데이터베이스 스키마 생성 완료');
     
+    // time_pattern 컬럼이 없는 경우 추가 (기존 테이블 마이그레이션)
+    try {
+      await client.query(`
+        ALTER TABLE member_menu_preferences 
+        ADD COLUMN IF NOT EXISTS time_pattern JSONB DEFAULT '{}'::jsonb
+      `);
+      console.log('✅ time_pattern 컬럼 마이그레이션 완료');
+      
+      // 인덱스 생성
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_member_menu_preferences_time_pattern 
+        ON member_menu_preferences USING GIN (time_pattern)
+      `);
+      console.log('✅ time_pattern 인덱스 생성 완료');
+    } catch (migrationError) {
+      // 이미 컬럼이 있거나 다른 이유로 실패해도 계속 진행
+      console.log('time_pattern 컬럼 마이그레이션 스킵:', migrationError.message);
+    }
+    
     // 기본 데이터 삽입 (선택사항)
     await insertInitialData(client);
     
