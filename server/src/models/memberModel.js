@@ -1,23 +1,34 @@
 import pool from '../config/database.js';
 
 // 멤버 조회 또는 생성
+// 동일 인원 판단 기준: 팀, 이름, 사원번호가 모두 일치해야 함
 export const findOrCreateMember = async (memberData, client = pool) => {
   const { team, name, employee_id } = memberData;
 
-  // 기존 멤버 조회
+  // 팀, 이름, 사원번호가 모두 일치하는 멤버 조회
   const existing = await client.query(
-    'SELECT * FROM members WHERE employee_id = $1',
-    [employee_id]
+    'SELECT * FROM members WHERE team = $1 AND name = $2 AND employee_id = $3',
+    [team, name, employee_id]
   );
 
   if (existing.rows.length > 0) {
-    // 기존 멤버 업데이트
-    const result = await client.query(
-      'UPDATE members SET team = $1, name = $2, updated_at = CURRENT_TIMESTAMP WHERE employee_id = $3 RETURNING *',
-      [team, name, employee_id]
-    );
-    return result.rows[0];
+    // 동일 인원 발견 (팀, 이름, 사원번호 모두 일치)
+    return existing.rows[0];
   } else {
+    // 동일 인원이 없음 - 새 멤버 생성
+    // 단, employee_id가 이미 존재하는 경우를 확인 (UNIQUE 제약조건 위반 방지)
+    const existingEmployeeId = await client.query(
+      'SELECT * FROM members WHERE employee_id = $1',
+      [employee_id]
+    );
+    
+    if (existingEmployeeId.rows.length > 0) {
+      // 같은 사원번호지만 팀이나 이름이 다른 경우 - 다른 인원으로 새 멤버 생성 불가
+      // 이 경우는 데이터베이스 제약조건에 의해 처리됨
+      // 하지만 더 명확한 에러 메시지를 위해 체크
+      throw new Error(`사원번호 ${employee_id}는 이미 다른 인원(${existingEmployeeId.rows[0].name}, ${existingEmployeeId.rows[0].team})으로 등록되어 있습니다.`);
+    }
+    
     // 새 멤버 생성
     const result = await client.query(
       'INSERT INTO members (team, name, employee_id) VALUES ($1, $2, $3) RETURNING *',
