@@ -82,17 +82,25 @@ app.use((err, req, res, next) => {
 
 // 서버 시작
 app.listen(PORT, async () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+  console.log(`✅ 서버가 포트 ${PORT}에서 실행 중입니다.`);
   console.log(`환경: ${process.env.NODE_ENV || 'development'}`);
   console.log(`API 엔드포인트: http://localhost:${PORT}/api`);
+  console.log(`허용된 CORS Origins: ${allowedOrigins.join(', ')}`);
   
   // 서버 시작 시 time_pattern 컬럼 확인 및 추가
   try {
+    console.log('데이터베이스 마이그레이션 시작...');
     await ensureTimePatternColumn();
+    console.log('✅ 데이터베이스 마이그레이션 완료');
   } catch (error) {
-    console.error('데이터베이스 마이그레이션 중 오류:', error);
+    console.error('❌ 데이터베이스 마이그레이션 중 오류:', error);
+    console.error('에러 상세:', error.message);
+    console.error('스택:', error.stack);
     // 마이그레이션 실패해도 서버는 계속 실행
+    console.log('⚠️ 마이그레이션 실패했지만 서버는 계속 실행됩니다.');
   }
+  
+  console.log('✅ 서버 준비 완료 - 요청 대기 중...');
 });
 
 export default app;
