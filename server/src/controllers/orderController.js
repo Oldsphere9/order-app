@@ -392,18 +392,25 @@ export const closeOrders = async (req, res, next) => {
 // 주문 리셋 가능 여부 확인
 export const canReset = async (req, res, next) => {
   try {
-    // 최근 1시간 이내에 마감 기록이 있는지 확인
-    const recentCloseCheck = await pool.query(`
+    // closed_orders에 마감 기록이 있는지만 확인 (시간 제한 없음)
+    const closeCheck = await pool.query(`
       SELECT COUNT(*) as count 
       FROM closed_orders 
-      WHERE closed_at >= NOW() - INTERVAL '1 hour'
+      WHERE closed_at IS NOT NULL
     `);
     
-    const recentCloseCount = parseInt(recentCloseCheck.rows[0].count);
+    const closeCount = parseInt(closeCheck.rows[0].count);
     
+    // 현재 주문이 있는지도 확인
+    const ordersCheck = await pool.query('SELECT COUNT(*) as count FROM orders');
+    const ordersCount = parseInt(ordersCheck.rows[0].count);
+    
+    console.log(`[주문 리셋 가능 여부] 마감 기록: ${closeCount}건, 현재 주문: ${ordersCount}건`);
+    
+    // 마감 기록이 있고 현재 주문이 있으면 리셋 가능
     res.json({
       success: true,
-      can_reset: recentCloseCount > 0
+      can_reset: closeCount > 0 && ordersCount > 0
     });
   } catch (error) {
     console.error('[주문 리셋 가능 여부 확인] 에러:', error);
@@ -419,25 +426,28 @@ export const resetAllOrders = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     
-    // 주문 마감 여부 확인 (최근 1시간 이내에 마감 기록이 있어야 함)
-    const recentCloseCheck = await client.query(`
+    // 주문 마감 여부 확인
+    // closed_orders에 마감 기록이 있는지만 확인 (시간 제한 없음)
+    // 주문 마감을 한 번이라도 했으면 리셋 가능
+    const closeCheck = await client.query(`
       SELECT COUNT(*) as count, MAX(closed_at) as latest_closed_at
-      FROM closed_orders 
-      WHERE closed_at >= NOW() - INTERVAL '1 hour'
+      FROM closed_orders
+      WHERE closed_at IS NOT NULL
     `);
     
-    const recentCloseCount = parseInt(recentCloseCheck.rows[0].count);
-    const latestClosedAt = recentCloseCheck.rows[0].latest_closed_at;
+    const closeCount = parseInt(closeCheck.rows[0].count);
+    const latestClosedAt = closeCheck.rows[0].latest_closed_at;
     
-    console.log(`[주문 리셋] 최근 마감 기록 확인: ${recentCloseCount}건, 최신 마감 시간: ${latestClosedAt}`);
+    console.log(`[주문 리셋] 마감 기록 확인: ${closeCount}건, 최신 마감 시간: ${latestClosedAt}`);
     
-    if (recentCloseCount === 0) {
-      // 전체 마감 기록 확인 (디버깅용)
-      const allCloseCheck = await client.query(`
-        SELECT COUNT(*) as count, MAX(closed_at) as latest_closed_at
-        FROM closed_orders
-      `);
-      console.log(`[주문 리셋] 전체 마감 기록: ${allCloseCheck.rows[0].count}건, 최신 마감 시간: ${allCloseCheck.rows[0].latest_closed_at}`);
+    // 현재 주문이 있는지 확인
+    const currentOrdersCheck = await client.query('SELECT COUNT(*) as count FROM orders');
+    const currentOrdersCount = parseInt(currentOrdersCheck.rows[0].count);
+    console.log(`[주문 리셋] 현재 주문 수: ${currentOrdersCount}건`);
+    
+    // 마감 기록이 없거나 현재 주문이 없으면 에러
+    if (closeCount === 0) {
+      console.log(`[주문 리셋] closed_orders 테이블에 마감 기록이 전혀 없습니다.`);
       
       await client.query('ROLLBACK');
       client.release();
@@ -445,6 +455,19 @@ export const resetAllOrders = async (req, res, next) => {
         success: false,
         error: '주문 마감을 먼저 진행해주세요.',
         code: 'CLOSE_FIRST'
+      });
+    }
+    
+    // 현재 주문이 없으면 리셋할 것이 없음
+    if (currentOrdersCount === 0) {
+      console.log(`[주문 리셋] 현재 주문이 없어 리셋할 것이 없습니다.`);
+      
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({
+        success: false,
+        error: '리셋할 주문이 없습니다.',
+        code: 'NO_ORDERS_TO_RESET'
       });
     }
     
