@@ -18,12 +18,20 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173'];
 
+// 디버깅: 허용된 origin 목록 로그
+console.log('허용된 CORS Origins:', allowedOrigins);
+console.log('CORS_ORIGIN 환경 변수:', process.env.CORS_ORIGIN);
+
 app.use(cors({
   origin: (origin, callback) => {
+    // 디버깅: 요청 origin 로그
+    console.log('요청 Origin:', origin);
+    
     // origin이 없거나 (같은 도메인 요청) 허용된 origin 목록에 있으면 허용
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.error('CORS 차단 - 요청 Origin:', origin, '허용된 Origins:', allowedOrigins);
       callback(new Error('CORS 정책에 의해 차단되었습니다.'));
     }
   },
