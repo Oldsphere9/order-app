@@ -471,15 +471,18 @@ export const resetAllOrders = async (req, res, next) => {
       });
     }
     
-    // 모든 주문 삭제
+    // 모든 주문 삭제 (closed_orders는 보존됨)
     const result = await orderModel.resetAllOrders(client);
     
     await client.query('COMMIT');
     
+    console.log(`[주문 리셋] 완료 - orders: ${result.deleted_orders_count}건 삭제, closed_orders: 보존됨`);
+    
     res.json({
       success: true,
-      message: '모든 주문이 삭제되었습니다.',
-      deleted_orders_count: result.deleted_orders_count
+      message: '모든 주문이 삭제되었습니다. (마감된 주문 정보는 보존되어 추천 메뉴에 사용됩니다)',
+      deleted_orders_count: result.deleted_orders_count,
+      deleted_members_count: result.deleted_members_count || 0
     });
   } catch (error) {
     if (client) {

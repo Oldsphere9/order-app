@@ -129,17 +129,31 @@ export const closeOrders = async (client = pool) => {
 };
 
 // 모든 주문 삭제 (주문 리셋)
+// 중요: closed_orders 테이블은 삭제하지 않음 (추천 메뉴 기능에 사용됨)
 export const resetAllOrders = async (client = pool) => {
-  // 모든 주문 삭제
+  // orders 테이블의 모든 주문 삭제 (closed_orders는 보존)
   const deleteOrdersResult = await client.query('DELETE FROM orders RETURNING id');
+  console.log(`[주문 리셋] orders 테이블에서 ${deleteOrdersResult.rows.length}건 삭제됨`);
+  
+  // closed_orders 보존 확인
+  const closedOrdersCheck = await client.query('SELECT COUNT(*) as count FROM closed_orders');
+  const closedOrdersCount = parseInt(closedOrdersCheck.rows[0].count);
+  console.log(`[주문 리셋] closed_orders 테이블 보존 확인: ${closedOrdersCount}건 유지됨 (추천 메뉴 기능에 사용)`);
   
   // 주문이 없는 멤버들도 삭제
-  await client.query(`
+  // 단, closed_orders에 기록이 있는 멤버는 보존 (추천 메뉴 기능에 사용)
+  const deleteMembersResult = await client.query(`
     DELETE FROM members 
-    WHERE id NOT IN (SELECT DISTINCT member_id FROM orders)
+    WHERE id NOT IN (
+      SELECT DISTINCT member_id FROM orders
+      UNION
+      SELECT DISTINCT member_id FROM closed_orders
+    )
   `);
+  console.log(`[주문 리셋] 주문이 없고 closed_orders에도 기록이 없는 멤버 ${deleteMembersResult.rowCount}명 삭제됨`);
   
   return {
-    deleted_orders_count: deleteOrdersResult.rows.length
+    deleted_orders_count: deleteOrdersResult.rows.length,
+    deleted_members_count: deleteMembersResult.rowCount
   };
 };
