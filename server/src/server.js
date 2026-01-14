@@ -5,7 +5,7 @@ import menuRoutes from './routes/menuRoutes.js';
 import optionRoutes from './routes/optionRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import memberRoutes from './routes/memberRoutes.js';
-import { ensureTimePatternColumn } from './config/initDatabase.js';
+import { ensureTimePatternColumn, ensureMembersTableSchema } from './config/initDatabase.js';
 
 // 환경 변수 로드 (.env 파일)
 dotenv.config({ path: '.env' });
@@ -87,10 +87,16 @@ app.listen(PORT, async () => {
   console.log(`API 엔드포인트: http://localhost:${PORT}/api`);
   console.log(`허용된 CORS Origins: ${allowedOrigins.join(', ')}`);
   
-  // 서버 시작 시 time_pattern 컬럼 확인 및 추가
+  // 서버 시작 시 데이터베이스 마이그레이션 실행
   try {
     console.log('데이터베이스 마이그레이션 시작...');
+    
+    // 1. time_pattern 컬럼 확인 및 추가
     await ensureTimePatternColumn();
+    
+    // 2. Members 테이블 스키마 마이그레이션 (employee_id UNIQUE 제약조건 변경)
+    await ensureMembersTableSchema();
+    
     console.log('✅ 데이터베이스 마이그레이션 완료');
   } catch (error) {
     console.error('❌ 데이터베이스 마이그레이션 중 오류:', error);

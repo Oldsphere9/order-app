@@ -237,6 +237,114 @@ async function testConnection() {
   }
 }
 
+// Members 테이블 스키마 마이그레이션 함수
+async function ensureMembersTableSchema() {
+  const client = await pool.connect();
+  
+  try {
+    console.log('Members 테이블 스키마 마이그레이션 시작...');
+    
+    // 기존 employee_id UNIQUE 제약조건 찾기 (모든 방법으로)
+    const constraintCheck1 = await client.query(`
+      SELECT constraint_name 
+      FROM information_schema.table_constraints 
+      WHERE table_name = 'members' 
+      AND constraint_type = 'UNIQUE'
+      AND constraint_name LIKE '%employee_id%'
+    `);
+    
+    const constraintCheck2 = await client.query(`
+      SELECT indexname 
+      FROM pg_indexes 
+      WHERE tablename = 'members' 
+      AND indexname LIKE '%employee_id%'
+      AND indexdef LIKE '%UNIQUE%'
+    `);
+    
+    const constraintCheck3 = await client.query(`
+      SELECT conname 
+      FROM pg_constraint 
+      WHERE conrelid = 'members'::regclass
+      AND contype = 'u'
+      AND conname LIKE '%employee_id%'
+    `);
+    
+    // 모든 제약조건 이름 수집
+    const allConstraints = new Set();
+    constraintCheck1.rows.forEach(row => allConstraints.add(row.constraint_name));
+    constraintCheck2.rows.forEach(row => allConstraints.add(row.indexname));
+    constraintCheck3.rows.forEach(row => allConstraints.add(row.conname));
+    
+    // 알려진 제약조건 이름도 포함 (PostgreSQL 자동 생성 이름)
+    const knownConstraintNames = [
+      'members_employee_id_key',
+      'members_employee_id_unique',
+      'idx_members_employee_id_unique'
+    ];
+    knownConstraintNames.forEach(name => allConstraints.add(name));
+    
+    // 기존 employee_id UNIQUE 제약조건 제거
+    if (allConstraints.size > 0) {
+      for (const constraintName of allConstraints) {
+        try {
+          await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+          console.log(`✅ 제약조건 제거: ${constraintName}`);
+        } catch (error) {
+          try {
+            await client.query(`DROP INDEX IF EXISTS ${constraintName}`);
+            console.log(`✅ 인덱스 제거: ${constraintName}`);
+          } catch (indexError) {
+            // 무시하고 계속 진행
+          }
+        }
+      }
+      console.log('✅ 기존 employee_id UNIQUE 제약조건 제거 완료');
+    } else {
+      // 그래도 알려진 제약조건 이름들을 시도
+      for (const constraintName of knownConstraintNames) {
+        try {
+          await client.query(`ALTER TABLE members DROP CONSTRAINT IF EXISTS ${constraintName}`);
+          console.log(`✅ 알려진 제약조건 제거 시도 성공: ${constraintName}`);
+        } catch (error) {
+          try {
+            await client.query(`DROP INDEX IF EXISTS ${constraintName}`);
+            console.log(`✅ 알려진 인덱스 제거 시도 성공: ${constraintName}`);
+          } catch (indexError) {
+            // 무시
+          }
+        }
+      }
+    }
+    
+    // (team, name, employee_id) 조합에 UNIQUE 제약조건 추가
+    const existingCompositeConstraint = await client.query(`
+      SELECT constraint_name 
+      FROM information_schema.table_constraints 
+      WHERE table_name = 'members' 
+      AND constraint_type = 'UNIQUE'
+      AND constraint_name = 'members_team_name_employee_id_unique'
+    `);
+    
+    if (existingCompositeConstraint.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE members 
+        ADD CONSTRAINT members_team_name_employee_id_unique 
+        UNIQUE (team, name, employee_id)
+      `);
+      console.log('✅ (team, name, employee_id) UNIQUE 제약조건 추가 완료');
+    } else {
+      console.log('✅ (team, name, employee_id) UNIQUE 제약조건이 이미 존재합니다.');
+    }
+    
+    console.log('✅ Members 테이블 스키마 마이그레이션 완료');
+  } catch (error) {
+    console.error('❌ Members 테이블 스키마 마이그레이션 실패:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // time_pattern 컬럼과 closed_orders 테이블 확인 및 추가하는 경량 마이그레이션 함수
 async function ensureTimePatternColumn() {
   const client = await pool.connect();
@@ -300,4 +408,4 @@ async function ensureTimePatternColumn() {
   }
 }
 
-export { initDatabase, testConnection, ensureTimePatternColumn };
+export { initDatabase, testConnection, ensureTimePatternColumn, ensureMembersTableSchema };
