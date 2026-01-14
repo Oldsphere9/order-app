@@ -125,7 +125,15 @@ export const getPreferencesByMemberIdWithHistory = async (memberId, currentDayOf
   try {
     // member_menu_preferences 기반 추천
     const preferences = await getPreferencesByMemberId(memberId, currentDayOfWeek, currentTimeSlot, limit);
-    console.log(`[추천 메뉴] member_menu_preferences에서 ${preferences.length}개 조회됨`);
+    console.log(`[추천 메뉴] member_menu_preferences에서 ${preferences.length}개 조회됨 (멤버 ID: ${memberId})`);
+    
+    // closed_orders에서도 조회 시도
+    const closedOrdersCheck = await pool.query(
+      'SELECT COUNT(*) as count FROM closed_orders WHERE member_id = $1',
+      [memberId]
+    );
+    const closedOrdersCount = parseInt(closedOrdersCheck.rows[0].count);
+    console.log(`[추천 메뉴] closed_orders에 ${closedOrdersCount}건의 주문 이력 있음`);
     
     // closed_orders에서 최근 주문 패턴 분석
     let closedOrdersQuery = `

@@ -112,7 +112,7 @@ function OrderSidebar({
               <div className="recommendations-empty">
                 주문 이력이 없습니다.
                 <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>
-                  (팀: {selectedTeam}, 이름: {name}, 사원번호: {employeeId})
+                  (팀: {sortedTeams.find(t => t.id.toString() === selectedTeam)?.name || selectedTeam}, 이름: {name}, 사원번호: {employeeId})
                 </div>
               </div>
             )}

@@ -20,11 +20,15 @@ export const getRecommendations = async (req, res, next) => {
 
     if (!member) {
       // 멤버가 없는 경우 빈 배열 반환
+      console.log(`[추천 메뉴] 멤버 없음 - 사원번호: ${employee_id}`);
       return res.json([]);
     }
 
+    console.log(`[추천 메뉴] 멤버 조회 성공 - ID: ${member.id}, 팀: ${member.team}, 이름: ${member.name}`);
+
     // 팀과 이름이 일치하는지 확인
     if (member.team !== team || member.name !== name) {
+      console.log(`[추천 메뉴] 팀/이름 불일치 - 요청: ${team}/${name}, DB: ${member.team}/${member.name}`);
       return res.json([]);
     }
 
