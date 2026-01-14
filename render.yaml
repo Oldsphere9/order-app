@@ -1,0 +1,46 @@
+# Render.com 배포 설정 파일
+# 이 파일을 사용하면 Render 대시보드에서 수동 설정 대신 자동으로 서비스를 생성할 수 있습니다.
+
+services:
+  # PostgreSQL 데이터베이스
+  - type: pspg
+    name: coffee-order-db
+    databaseName: coffee_order_db
+    region: singapore
+    plan: free
+
+  # 백엔드 API 서버
+  - type: web
+    name: coffee-order-api
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    rootDir: server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        # 프론트엔드 URL로 업데이트 필요
+        value: https://coffee-order-app.onrender.com
+    # 데이터베이스 연결 (자동으로 DATABASE_URL 환경 변수 생성)
+    database:
+      name: coffee-order-db
+      databaseName: coffee_order_db
+
+  # 프론트엔드 (Static Site)
+  - type: web
+    name: coffee-order-app
+    env: static
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    rootDir: ui
+    envVars:
+      - key: VITE_API_URL
+        # 백엔드 API URL로 업데이트 필요
+        value: https://coffee-order-api.onrender.com/api

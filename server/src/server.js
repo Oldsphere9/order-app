@@ -13,8 +13,20 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 미들웨어
+// CORS 설정: 여러 origin 허용 (배포 환경 대응)
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // origin이 없거나 (같은 도메인 요청) 허용된 origin 목록에 있으면 허용
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS 정책에 의해 차단되었습니다.'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
